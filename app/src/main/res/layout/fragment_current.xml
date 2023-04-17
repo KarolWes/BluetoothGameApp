@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/green_700"
+    tools:context=".ui.home.HomeFragment">
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="416dp"
+        android:layout_height="598dp"
+        android:background="@color/green_400"
+        app:layout_constraintBottom_toTopOf="@+id/buttonUpload"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textTitle" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/visibleDevicesList"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        app:layout_constraintBottom_toTopOf="@+id/buttonUpload"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/divider" />
+
+    <TextView
+        android:id="@+id/textTitle"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:text="@string/title_current"
+        android:textAlignment="center"
+        android:textColor="@color/gray_500"
+        android:textSize="34sp"
+        app:layout_constraintBottom_toTopOf="@+id/divider"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/buttonUpload"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:backgroundTint="@color/gold"
+        android:foregroundTint="@color/yellow"
+        android:src="@android:drawable/ic_menu_upload"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/buttonRefresh"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/buttonCancel"
+        app:layout_constraintTop_toBottomOf="@+id/divider" />
+
+    <ImageButton
+        android:id="@+id/buttonCancel"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:backgroundTint="@color/gold"
+        android:foregroundTint="@color/yellow"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        app:layout_constraintBottom_toBottomOf="@+id/buttonUpload"
+        app:layout_constraintEnd_toStartOf="@+id/buttonUpload"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/divider" />
+
+    <ImageButton
+        android:id="@+id/buttonRefresh"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:backgroundTint="@color/gold"
+        android:foregroundTint="@color/yellow"
+        android:src="@android:drawable/ic_menu_rotate"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/buttonUpload"
+        app:layout_constraintTop_toBottomOf="@+id/divider" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
