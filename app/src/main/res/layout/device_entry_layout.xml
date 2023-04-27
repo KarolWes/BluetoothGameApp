@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/deviceEntry"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="10dp">
+
+    <ImageView
+        android:id="@+id/deviceIcon"
+        android:layout_width="40dp"
+        android:layout_height="49dp"
+        android:layout_weight="1"
+        app:srcCompat="@drawable/baseline_phone_android_24" />
+
+    <TextView
+        android:id="@+id/deviceTagText"
+        android:layout_width="176dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="TextView"
+        android:textColor="@color/brown_700" />
+
+    <Button
+        android:id="@+id/markOwnButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="My own"
+        android:textColor="@color/brown_700" />
+</LinearLayout>
