@@ -4,14 +4,8 @@
     android:id="@+id/deviceEntry"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="10dp">
-
-    <ImageView
-        android:id="@+id/deviceIcon"
-        android:layout_width="40dp"
-        android:layout_height="49dp"
-        android:layout_weight="1"
-        app:srcCompat="@drawable/baseline_phone_android_24" />
+    android:background="@color/beige_800"
+    android:padding="15dp">
 
     <TextView
         android:id="@+id/deviceTagText"
@@ -19,7 +13,8 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="TextView"
-        android:textColor="@color/brown_700" />
+        android:textColor="@color/brown_700"
+        android:textSize="20sp" />
 
     <Button
         android:id="@+id/markOwnButton"
@@ -27,5 +22,6 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="My own"
-        android:textColor="@color/brown_700" />
+        android:textColor="@color/brown_700"
+        android:textColorHighlight="@color/green_400" />
 </LinearLayout>
