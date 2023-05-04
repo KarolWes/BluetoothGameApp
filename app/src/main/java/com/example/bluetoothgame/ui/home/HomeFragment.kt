@@ -16,6 +16,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageButton
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -32,70 +33,87 @@ import com.example.bluetoothgame.databinding.FragmentCurrentBinding
 
 class HomeFragment : Fragment() {
 
+    // variables
     private var _binding: FragmentCurrentBinding? = null
     private var PERMISSIONS: Array<String> = emptyArray()
+
+    // layout elements
     private lateinit var _devices: ArrayList<Device>
     private lateinit var _bluetooth: BluetoothAdapter
     private lateinit var _bm: BluetoothManager
     private lateinit var _recyclerView: RecyclerView
+    private lateinit var _refreshButton: ImageButton
+    private lateinit var _cancelButton: ImageButton
+    private lateinit var _uploadButton: ImageButton
 
-    // This property is only valid between onCreateView and
-    // onDestroyView.
+    //Constants
     private val binding get() = _binding!!
+    private val _receiver: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device =
+                        intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                    if (ActivityCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        ActivityCompat.requestPermissions(requireActivity(), PERMISSIONS, 1)
+                    }
+                    if(device != null){
+                        if(device.name == null){
+                            _devices.add(Device("-", device.address))
+                        }
+                        else{
+                            _devices.add(Device(device.name, device.address))
+                        }
+                        Log.i(
+                            "bluetoothLog", """
+                         ${device.name}
+                         ${device.address}
+                         """.trimIndent()
+                        )
+                    }
 
-    fun getNearbyDevices(){
-
-    }
-
-    private val requestPermissionLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted: Boolean ->
-            if (isGranted) {
-                Log.i("Permission: ,", "granted")
-            } else {
-                Log.i("Permission: ,", "denied")
-            }
-        }
-
-    private fun requestPermission(context: Context, perm: String){
-        when (PackageManager.PERMISSION_GRANTED) {
-            ContextCompat.checkSelfPermission(
-                context,
-                perm
-            ) -> {
-                // You can use the API that requires the permission.
-            }
-            else -> {
-                requestPermissionLauncher.launch(
-                    Manifest.permission.BLUETOOTH_ADMIN)
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED ->{
+                    Log.i("bluetoothLog", "Started Discovery")
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED->{
+                    Log.i("bluetoothLog", "Finished Discovery")
+                    val devAdapter = DeviceAdapter(_devices)
+                    _recyclerView.adapter = devAdapter
+                    _recyclerView.layoutManager = LinearLayoutManager(context)
+                }
             }
         }
     }
 
     private fun checkPermissions(context:Context, perm: Array<String>){
-            if(ActivityCompat.checkSelfPermission(context, perm[0]) != PackageManager.PERMISSION_GRANTED){
+        for (p in perm){
+            if(ActivityCompat.checkSelfPermission(context, p) != PackageManager.PERMISSION_GRANTED){
                 ActivityCompat.requestPermissions(this.requireActivity(), perm, 1)
             }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @SuppressLint("MissingPermission")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-
+        // setup
         PERMISSIONS += Manifest.permission.BLUETOOTH
         PERMISSIONS += Manifest.permission.BLUETOOTH_ADMIN
         PERMISSIONS += Manifest.permission.BLUETOOTH_CONNECT
         PERMISSIONS += Manifest.permission.BLUETOOTH_SCAN
+        PERMISSIONS += Manifest.permission.ACCESS_COARSE_LOCATION
+        PERMISSIONS += Manifest.permission.ACCESS_FINE_LOCATION
         checkPermissions(this.requireContext(), PERMISSIONS)
-
         val homeViewModel =
             ViewModelProvider(this)[HomeViewModel::class.java]
-
         _binding = FragmentCurrentBinding.inflate(inflater, container, false)
         val root: View = binding.root
 
@@ -103,41 +121,55 @@ class HomeFragment : Fragment() {
         homeViewModel.text.observe(viewLifecycleOwner) {
             textView.text = it
         }
-        _devices = arrayListOf()
-        _devices.add(Device("this one", "1:1:1:1"))
+        // bindings
         _recyclerView = binding.visibleDevicesList
-        val devAdapter = DeviceAdapter(_devices)
-        _recyclerView.adapter = devAdapter
-        _recyclerView.layoutManager = LinearLayoutManager(this.context)
+        _refreshButton = binding.buttonRefresh
+        _refreshButton.setOnClickListener { sync(it) }
+        _cancelButton = binding.buttonCancel
+        _cancelButton.setOnClickListener { cancel(it) }
+        _uploadButton = binding.buttonUpload
+        _uploadButton.setOnClickListener { upload(it) }
 
+        // bluetooth adapter settings
         _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         _bluetooth = _bm.adapter
-        // _bluetooth.startDiscovery()
+        if (ActivityCompat.checkSelfPermission(
+                this.requireContext(),
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(this.requireActivity(), PERMISSIONS, 1)
+        }
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        context?.registerReceiver(_receiver, filter)
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        requireContext().registerReceiver(_receiver, filter)
+        //deviceList setup
+        _devices = arrayListOf()
+        _bluetooth.startDiscovery()
+
         return root
     }
 
-    private val _receiver: BroadcastReceiver = object : BroadcastReceiver() {
-        @SuppressLint("MissingPermission")
-        override fun onReceive(context: Context, intent: Intent) {
-            val action = intent.action
-            if (BluetoothDevice.ACTION_FOUND == action) {
-                val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                _devices?.add(Device(device!!.name, device.address))
-                Log.i(
-                    "BT", """
-                         ${device!!.name}
-                         ${device.address}
-                         """.trimIndent()
-                )
-            }
-        }
-    }
 
     override fun onDestroyView() {
-        context?.unregisterReceiver(_receiver);
+        requireContext().unregisterReceiver(_receiver);
         super.onDestroyView()
         _binding = null
+    }
+
+
+    @SuppressLint("MissingPermission")
+    fun sync(v:View){
+        Log.i("Button", "sync clicked")
+        _bluetooth.startDiscovery()
+
+    }
+    fun upload(v:View){
+        Log.i("Button", "upload clicked")
+    }
+
+    fun cancel(v:View){
+        Log.i("Button", "cancel clicked")
     }
 }

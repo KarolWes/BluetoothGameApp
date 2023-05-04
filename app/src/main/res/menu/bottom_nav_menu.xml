@@ -5,12 +5,10 @@
         android:id="@+id/navigation_current_session"
         android:icon="@drawable/ic_home_black_24dp"
         android:title="@string/title_current" />
-
     <item
         android:id="@+id/navigation_leaderboard"
         android:icon="@drawable/baseline_leaderboard_24"
         android:title="@string/title_leaderboard" />
-
     <item
         android:id="@+id/navigation_notifications"
         android:icon="@drawable/baseline_settings_24"

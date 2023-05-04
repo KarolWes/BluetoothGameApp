@@ -1,12 +1,15 @@
 package com.example.bluetoothgame
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.databinding.DeviceEntryLayoutBinding
 
-class Device(val name: String, val address:String, val my: Boolean =false) {
+class Device(val name: String, val address:String, var my: Boolean =false) {
 
     companion object {
         private var lastContactId = 0
@@ -21,32 +24,48 @@ class Device(val name: String, val address:String, val my: Boolean =false) {
 }
 class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<DeviceAdapter.ViewHolder>(){
     private lateinit var _binding: DeviceEntryLayoutBinding
-    // Provide a direct reference to each of the views within a data item
-    // Used to cache the views within the item layout for fast access
-    inner class ViewHolder(entryView: View) : RecyclerView.ViewHolder(entryView) {
-        // Your holder should contain and initialize a member variable
-        // for any view that will be set as you render a row
+    inner class ViewHolder(entryView: View, context: Context) : RecyclerView.ViewHolder(entryView) {
         val nameTextView = _binding.deviceTagText
+        val addressTextView = _binding.deviceMacText
         val messageButton = _binding.markOwnButton
+        val row = _binding.deviceEntry
+        val context = context
     }
 
-    // ... constructor and member variables
-    // Usually involves inflating a layout from XML and returning the holder
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         _binding = DeviceEntryLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         val deviceView = _binding.root
-        return ViewHolder(deviceView)
+        return ViewHolder(deviceView, parent.context)
+    }
+
+    fun markOwn(v: View?, position: Int, button: Button) {
+        if (v != null) {
+            val dev: Device = devices[position]
+            dev.my = dev.my xor true
+            button.text = if (!dev.my) "Mark as my" else "Mark as not my"
+        }
     }
 
     // Involves populating data into the item through holder
     override fun onBindViewHolder(viewHolder: DeviceAdapter.ViewHolder, position: Int) {
-        // Get the data model based on position
-        val contact: Device = devices[position]
-        // Set item views based on your views and data model
-        val textView = viewHolder.nameTextView
-        textView.text = contact.name
+        val dev: Device = devices[position]
+        if(position % 2 == 1){
+            viewHolder.row.setBackgroundColor(
+                ContextCompat.getColor(viewHolder.context, R.color.beige_800))
+        }else{
+            viewHolder.row.setBackgroundColor(
+                ContextCompat.getColor(viewHolder.context, R.color.beige_200))
+        }
+        val nameText = viewHolder.nameTextView
+        nameText.text = dev.name
+        val addressText = viewHolder.addressTextView
+        addressText.text = dev.address
         val button = viewHolder.messageButton
-        button.text = if (contact.my) "Mark as my" else "Mark as not my"
+        button.tag = position
+        button.text = if (!dev.my) "Mark as my" else "Mark as not my"
+        button.setOnClickListener{
+            markOwn(it, position, button)
+        }
     }
 
     // Returns the total count of items in the list

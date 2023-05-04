@@ -7,21 +7,48 @@
     android:background="@color/beige_800"
     android:padding="15dp">
 
-    <TextView
-        android:id="@+id/deviceTagText"
-        android:layout_width="176dp"
-        android:layout_height="wrap_content"
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="59dp"
+        android:layout_height="59dp"
         android:layout_weight="1"
-        android:text="TextView"
-        android:textColor="@color/brown_700"
-        android:textSize="20sp" />
+        app:srcCompat="@drawable/baseline_phone_android_96" />
+
+    <LinearLayout
+        android:layout_width="187dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp">
+
+        <TextView
+            android:id="@+id/deviceTagText"
+            android:layout_width="176dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="name"
+            android:textColor="@color/brown_700"
+            android:textSize="20sp" />
+
+        <TextView
+            android:id="@+id/deviceMacText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="mac address"
+            android:textColor="@color/brown_700" />
+    </LinearLayout>
 
     <Button
         android:id="@+id/markOwnButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_weight="1"
+        android:backgroundTint="@color/green_400"
+        android:padding="10dp"
         android:text="My own"
         android:textColor="@color/brown_700"
-        android:textColorHighlight="@color/green_400" />
+        android:textColorHighlight="@color/green_400"
+        app:rippleColor="@color/green_400" />
 </LinearLayout>
