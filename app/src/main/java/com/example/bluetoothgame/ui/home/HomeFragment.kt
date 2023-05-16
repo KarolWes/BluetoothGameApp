@@ -53,6 +53,7 @@ class HomeFragment : Fragment() {
     private lateinit var _uploadButton: ImageButton
     private lateinit var _syncImage: ImageView
     private lateinit var _uploadImage: ImageView
+    private lateinit var _btOffImage: ImageView
 
     //Constants
     private val binding get() = _binding!!
@@ -157,6 +158,8 @@ class HomeFragment : Fragment() {
         _syncImage.visibility = View.INVISIBLE
         _uploadImage = binding.uploadImage
         _uploadImage.visibility = View.INVISIBLE
+        _btOffImage = binding.bluetoothOffImage
+        _btOffImage.visibility = View.INVISIBLE
 
         // bluetooth adapter settings
         _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -167,6 +170,9 @@ class HomeFragment : Fragment() {
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(this.requireActivity(), PERMISSIONS, 1)
+        }
+        if (!_bluetooth.isEnabled) {
+            _btOffImage.visibility = View.VISIBLE
         }
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
@@ -192,26 +198,37 @@ class HomeFragment : Fragment() {
     @SuppressLint("MissingPermission")
     fun sync(v:View){
         Log.i("Button", "sync clicked")
-        if(_discoveryFinished){
-            _discoveryFinished = false
-            _syncImage.visibility = View.VISIBLE
-            _bluetooth.startDiscovery()
+        if(_bluetooth.isEnabled){
+            if(_discoveryFinished){
+                _discoveryFinished = false
+                _syncImage.visibility = View.VISIBLE
+                _bluetooth.startDiscovery()
+            }
         }
+
     }
 
     @SuppressLint("MissingPermission")
-    suspend fun sync_coroutine(){
+    suspend fun sync_coroutine() {
         while(true){
-            while(!_discoveryFinished){
-                delay(1000L *_refreshRate/2)
+            if(_bluetooth.isEnabled){
+                while(!_discoveryFinished){
+                    delay(1000L *_refreshRate/2)
+                }
+                _discoveryFinished = false
+                Log.i("Sync", "Synchronizing")
+                this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+                    _btOffImage.visibility = View.INVISIBLE
+                    _syncImage.visibility = View.VISIBLE
+                })
+                this._bluetooth.startDiscovery()
+                delay(1000L *_refreshRate)
             }
-            _discoveryFinished = false
-            Log.i("Sync", "Synchronizing")
-            this@HomeFragment.requireActivity().runOnUiThread(Runnable {
-                _syncImage.visibility = View.VISIBLE
-            })
-            _bluetooth.startDiscovery()
-            delay(1000L *_refreshRate)
+            else{
+                this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+                    _btOffImage.visibility = View.VISIBLE
+                })
+            }
         }
     }
     fun upload(v:View){

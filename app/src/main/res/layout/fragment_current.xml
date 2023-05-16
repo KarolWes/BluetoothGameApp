@@ -107,4 +107,14 @@
         app:layout_constraintTop_toTopOf="@+id/textTitle"
         tools:visibility="invisible" />
 
+    <ImageView
+        android:id="@+id/bluetoothOffImage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/baseline_bluetooth_disabled_128"
+        app:layout_constraintBottom_toBottomOf="@+id/divider"
+        app:layout_constraintEnd_toEndOf="@+id/visibleDevicesList"
+        app:layout_constraintStart_toStartOf="@+id/divider"
+        app:layout_constraintTop_toTopOf="@+id/divider" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
