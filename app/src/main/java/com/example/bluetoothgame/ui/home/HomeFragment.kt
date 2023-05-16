@@ -17,11 +17,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,6 +28,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.Device
 import com.example.bluetoothgame.DeviceAdapter
 import com.example.bluetoothgame.databinding.FragmentCurrentBinding
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 class HomeFragment : Fragment() {
@@ -36,15 +38,21 @@ class HomeFragment : Fragment() {
     // variables
     private var _binding: FragmentCurrentBinding? = null
     private var PERMISSIONS: Array<String> = emptyArray()
+    private var _refreshRate: Int = 30
+    private var _discoveryFinished: Boolean = true
 
     // layout elements
     private lateinit var _devices: ArrayList<Device>
+    private lateinit var _toSend: ArrayList<Pair<Device, Long>>
+    private lateinit var _newDevices: ArrayList<Device>
     private lateinit var _bluetooth: BluetoothAdapter
     private lateinit var _bm: BluetoothManager
     private lateinit var _recyclerView: RecyclerView
     private lateinit var _refreshButton: ImageButton
     private lateinit var _cancelButton: ImageButton
     private lateinit var _uploadButton: ImageButton
+    private lateinit var _syncImage: ImageView
+    private lateinit var _uploadImage: ImageView
 
     //Constants
     private val binding get() = _binding!!
@@ -63,10 +71,10 @@ class HomeFragment : Fragment() {
                     }
                     if(device != null){
                         if(device.name == null){
-                            _devices.add(Device("-", device.address))
+                            _newDevices.add(Device("-", device.address))
                         }
                         else{
-                            _devices.add(Device(device.name, device.address))
+                            _newDevices.add(Device(device.name, device.address))
                         }
                         Log.i(
                             "bluetoothLog", """
@@ -75,21 +83,37 @@ class HomeFragment : Fragment() {
                          """.trimIndent()
                         )
                     }
-
                 }
                 BluetoothAdapter.ACTION_DISCOVERY_STARTED ->{
                     Log.i("bluetoothLog", "Started Discovery")
                 }
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED->{
                     Log.i("bluetoothLog", "Finished Discovery")
+                    prepareDeviceList()
                     val devAdapter = DeviceAdapter(_devices)
                     _recyclerView.adapter = devAdapter
                     _recyclerView.layoutManager = LinearLayoutManager(context)
+                    _discoveryFinished = true
                 }
             }
         }
     }
-
+    fun prepareDeviceList(){
+        if(_devices.isEmpty()){
+            _devices = _newDevices
+            _newDevices = arrayListOf()
+        }
+        else{
+            val tmp = ArrayList(_devices.toSet().minus(_newDevices.toSet()))
+            for (entry in tmp){
+                Log.i("bluetoothLog", "To send -> $entry")
+                _toSend += Pair(entry, System.currentTimeMillis())
+            }
+            _devices = _newDevices
+            _newDevices = arrayListOf()
+        }
+        _syncImage.visibility = View.INVISIBLE
+    }
     private fun checkPermissions(context:Context, perm: Array<String>){
         for (p in perm){
             if(ActivityCompat.checkSelfPermission(context, p) != PackageManager.PERMISSION_GRANTED){
@@ -129,6 +153,10 @@ class HomeFragment : Fragment() {
         _cancelButton.setOnClickListener { cancel(it) }
         _uploadButton = binding.buttonUpload
         _uploadButton.setOnClickListener { upload(it) }
+        _syncImage = binding.syncImage
+        _syncImage.visibility = View.INVISIBLE
+        _uploadImage = binding.uploadImage
+        _uploadImage.visibility = View.INVISIBLE
 
         // bluetooth adapter settings
         _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -146,7 +174,9 @@ class HomeFragment : Fragment() {
         requireContext().registerReceiver(_receiver, filter)
         //deviceList setup
         _devices = arrayListOf()
-        _bluetooth.startDiscovery()
+        _toSend = arrayListOf()
+        _newDevices = arrayListOf()
+        GlobalScope.launch { sync_coroutine() }
 
         return root
     }
@@ -162,8 +192,27 @@ class HomeFragment : Fragment() {
     @SuppressLint("MissingPermission")
     fun sync(v:View){
         Log.i("Button", "sync clicked")
-        _bluetooth.startDiscovery()
+        if(_discoveryFinished){
+            _discoveryFinished = false
+            _syncImage.visibility = View.VISIBLE
+            _bluetooth.startDiscovery()
+        }
+    }
 
+    @SuppressLint("MissingPermission")
+    suspend fun sync_coroutine(){
+        while(true){
+            while(!_discoveryFinished){
+                delay(1000L *_refreshRate/2)
+            }
+            _discoveryFinished = false
+            Log.i("Sync", "Synchronizing")
+            this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+                _syncImage.visibility = View.VISIBLE
+            })
+            _bluetooth.startDiscovery()
+            delay(1000L *_refreshRate)
+        }
     }
     fun upload(v:View){
         Log.i("Button", "upload clicked")
@@ -172,4 +221,5 @@ class HomeFragment : Fragment() {
     fun cancel(v:View){
         Log.i("Button", "cancel clicked")
     }
+
 }

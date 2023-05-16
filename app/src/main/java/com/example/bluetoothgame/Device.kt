@@ -21,6 +21,10 @@ class Device(val name: String, val address:String, var my: Boolean =false) {
             return devicesList
         }
     }
+
+    override fun toString(): String {
+        return "$name $address"
+    }
 }
 class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<DeviceAdapter.ViewHolder>(){
     private lateinit var _binding: DeviceEntryLayoutBinding
