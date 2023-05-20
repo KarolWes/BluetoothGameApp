@@ -36,17 +36,15 @@ import kotlinx.coroutines.launch
 class HomeFragment : Fragment() {
 
     // variables
-    private var _binding: FragmentCurrentBinding? = null
     private var PERMISSIONS: Array<String> = emptyArray()
+    private var _binding: FragmentCurrentBinding? = null
     private var _refreshRate: Int = 30
     private var _discoveryFinished: Boolean = true
+    private var _devices: ArrayList<Device> = arrayListOf()
+    private var _toSend: ArrayList<Pair<Device, Long>> = arrayListOf()
+    private var _newDevices: ArrayList<Device> = arrayListOf()
 
     // layout elements
-    private lateinit var _devices: ArrayList<Device>
-    private lateinit var _toSend: ArrayList<Pair<Device, Long>>
-    private lateinit var _newDevices: ArrayList<Device>
-    private lateinit var _bluetooth: BluetoothAdapter
-    private lateinit var _bm: BluetoothManager
     private lateinit var _recyclerView: RecyclerView
     private lateinit var _refreshButton: ImageButton
     private lateinit var _cancelButton: ImageButton
@@ -54,6 +52,10 @@ class HomeFragment : Fragment() {
     private lateinit var _syncImage: ImageView
     private lateinit var _uploadImage: ImageView
     private lateinit var _btOffImage: ImageView
+
+    // various
+    private lateinit var _bluetooth: BluetoothAdapter
+    private lateinit var _bm: BluetoothManager
 
     //Constants
     private val binding get() = _binding!!
@@ -99,6 +101,60 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
+    // functions
+    // overrides
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _devices = arrayListOf()
+        _toSend = arrayListOf()
+        _newDevices = arrayListOf()
+        // setup
+        PERMISSIONS += Manifest.permission.BLUETOOTH
+        PERMISSIONS += Manifest.permission.BLUETOOTH_ADMIN
+        PERMISSIONS += Manifest.permission.BLUETOOTH_CONNECT
+        PERMISSIONS += Manifest.permission.BLUETOOTH_SCAN
+        PERMISSIONS += Manifest.permission.ACCESS_COARSE_LOCATION
+        PERMISSIONS += Manifest.permission.ACCESS_FINE_LOCATION
+        checkPermissions(this.requireContext(), PERMISSIONS)
+        val root: View = binding.root
+        generateView(inflater, container)
+
+
+        // bluetooth adapter settings
+        _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        _bluetooth = _bm.adapter
+        if (ActivityCompat.checkSelfPermission(
+                this.requireContext(),
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(this.requireActivity(), PERMISSIONS, 1)
+        }
+        if (!_bluetooth.isEnabled) {
+            _btOffImage.visibility = View.VISIBLE
+        }
+        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        requireContext().registerReceiver(_receiver, filter)
+
+        GlobalScope.launch { syncCoroutine() }
+        return root
+    }
+
+    override fun onDestroyView() {
+        requireContext().unregisterReceiver(_receiver);
+        super.onDestroyView()
+        _binding = null
+    }
+
+    // technical
     fun prepareDeviceList(){
         if(_devices.isEmpty()){
             _devices = _newDevices
@@ -123,93 +179,8 @@ class HomeFragment : Fragment() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        // setup
-        PERMISSIONS += Manifest.permission.BLUETOOTH
-        PERMISSIONS += Manifest.permission.BLUETOOTH_ADMIN
-        PERMISSIONS += Manifest.permission.BLUETOOTH_CONNECT
-        PERMISSIONS += Manifest.permission.BLUETOOTH_SCAN
-        PERMISSIONS += Manifest.permission.ACCESS_COARSE_LOCATION
-        PERMISSIONS += Manifest.permission.ACCESS_FINE_LOCATION
-        checkPermissions(this.requireContext(), PERMISSIONS)
-        val homeViewModel =
-            ViewModelProvider(this)[HomeViewModel::class.java]
-        _binding = FragmentCurrentBinding.inflate(inflater, container, false)
-        val root: View = binding.root
-
-        val textView: TextView = binding.textTitle
-        homeViewModel.text.observe(viewLifecycleOwner) {
-            textView.text = it
-        }
-        // bindings
-        _recyclerView = binding.visibleDevicesList
-        _refreshButton = binding.buttonRefresh
-        _refreshButton.setOnClickListener { sync(it) }
-        _cancelButton = binding.buttonCancel
-        _cancelButton.setOnClickListener { cancel(it) }
-        _uploadButton = binding.buttonUpload
-        _uploadButton.setOnClickListener { upload(it) }
-        _syncImage = binding.syncImage
-        _syncImage.visibility = View.INVISIBLE
-        _uploadImage = binding.uploadImage
-        _uploadImage.visibility = View.INVISIBLE
-        _btOffImage = binding.bluetoothOffImage
-        _btOffImage.visibility = View.INVISIBLE
-
-        // bluetooth adapter settings
-        _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        _bluetooth = _bm.adapter
-        if (ActivityCompat.checkSelfPermission(
-                this.requireContext(),
-                Manifest.permission.BLUETOOTH_SCAN
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this.requireActivity(), PERMISSIONS, 1)
-        }
-        if (!_bluetooth.isEnabled) {
-            _btOffImage.visibility = View.VISIBLE
-        }
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
-        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
-        requireContext().registerReceiver(_receiver, filter)
-        //deviceList setup
-        _devices = arrayListOf()
-        _toSend = arrayListOf()
-        _newDevices = arrayListOf()
-        GlobalScope.launch { sync_coroutine() }
-
-        return root
-    }
-
-
-    override fun onDestroyView() {
-        requireContext().unregisterReceiver(_receiver);
-        super.onDestroyView()
-        _binding = null
-    }
-
-
     @SuppressLint("MissingPermission")
-    fun sync(v:View){
-        Log.i("Button", "sync clicked")
-        if(_bluetooth.isEnabled){
-            if(_discoveryFinished){
-                _discoveryFinished = false
-                _syncImage.visibility = View.VISIBLE
-                _bluetooth.startDiscovery()
-            }
-        }
-
-    }
-
-    @SuppressLint("MissingPermission")
-    suspend fun sync_coroutine() {
+    suspend fun syncCoroutine() {
         while(true){
             if(_bluetooth.isEnabled){
                 while(!_discoveryFinished){
@@ -231,6 +202,50 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
+    // graphical
+    private fun generateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?
+    ){
+        val homeViewModel =
+            ViewModelProvider(this)[HomeViewModel::class.java]
+        _binding = FragmentCurrentBinding.inflate(inflater, container, false)
+
+
+        val textView: TextView = binding.textTitle
+        homeViewModel.text.observe(viewLifecycleOwner) {
+            textView.text = it
+        }
+        // bindings
+        _recyclerView = binding.visibleDevicesList
+        _refreshButton = binding.buttonRefresh
+        _refreshButton.setOnClickListener { sync(it) }
+        _cancelButton = binding.buttonCancel
+        _cancelButton.setOnClickListener { cancel(it) }
+        _uploadButton = binding.buttonUpload
+        _uploadButton.setOnClickListener { upload(it) }
+        _syncImage = binding.syncImage
+        _syncImage.visibility = View.INVISIBLE
+        _uploadImage = binding.uploadImage
+        _uploadImage.visibility = View.INVISIBLE
+        _btOffImage = binding.bluetoothOffImage
+        _btOffImage.visibility = View.INVISIBLE
+    }
+
+    @SuppressLint("MissingPermission")
+    fun sync(v:View){
+        Log.i("Button", "sync clicked")
+        if(_bluetooth.isEnabled){
+            if(_discoveryFinished){
+                _discoveryFinished = false
+                _syncImage.visibility = View.VISIBLE
+                _bluetooth.startDiscovery()
+            }
+        }
+
+    }
+
     fun upload(v:View){
         Log.i("Button", "upload clicked")
     }
