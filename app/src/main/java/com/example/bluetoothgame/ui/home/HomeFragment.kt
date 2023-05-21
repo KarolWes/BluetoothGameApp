@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -21,6 +22,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
+import androidx.core.content.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -56,10 +58,12 @@ class HomeFragment : Fragment() {
     // various
     private lateinit var _bluetooth: BluetoothAdapter
     private lateinit var _bm: BluetoothManager
+    private lateinit var _lm: LocationManager
 
     //Constants
     private val binding get() = _binding!!
     private val _receiver: BroadcastReceiver = object : BroadcastReceiver() {
+        @RequiresApi(Build.VERSION_CODES.P)
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
@@ -98,6 +102,28 @@ class HomeFragment : Fragment() {
                     _recyclerView.layoutManager = LinearLayoutManager(context)
                     _discoveryFinished = true
                 }
+                BluetoothAdapter.ACTION_STATE_CHANGED->{
+                    if (_bluetooth.isEnabled and _lm.isLocationEnabled){
+                        _btOffImage.visibility = View.INVISIBLE
+                    }
+                    else{
+                        _btOffImage.visibility = View.VISIBLE
+                        _syncImage.visibility = View.INVISIBLE
+                        _discoveryFinished = true
+                        _bluetooth.cancelDiscovery()
+                    }
+                }
+                LocationManager.PROVIDERS_CHANGED_ACTION->{
+                    if (_bluetooth.isEnabled and _lm.isLocationEnabled){
+                        _btOffImage.visibility = View.INVISIBLE
+                    }
+                    else{
+                        _btOffImage.visibility = View.VISIBLE
+                        _syncImage.visibility = View.INVISIBLE
+                        _discoveryFinished = true
+                        _bluetooth.cancelDiscovery()
+                    }
+                }
             }
         }
     }
@@ -122,12 +148,21 @@ class HomeFragment : Fragment() {
         PERMISSIONS += Manifest.permission.ACCESS_COARSE_LOCATION
         PERMISSIONS += Manifest.permission.ACCESS_FINE_LOCATION
         checkPermissions(this.requireContext(), PERMISSIONS)
+        val homeViewModel =
+            ViewModelProvider(this)[HomeViewModel::class.java]
+        _binding = FragmentCurrentBinding.inflate(inflater, container, false)
         val root: View = binding.root
+
+        val textView: TextView = binding.textTitle
+        homeViewModel.text.observe(viewLifecycleOwner) {
+            textView.text = it
+        }
         generateView(inflater, container)
 
 
         // bluetooth adapter settings
         _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        _lm = context?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         _bluetooth = _bm.adapter
         if (ActivityCompat.checkSelfPermission(
                 this.requireContext(),
@@ -136,18 +171,18 @@ class HomeFragment : Fragment() {
         ) {
             ActivityCompat.requestPermissions(this.requireActivity(), PERMISSIONS, 1)
         }
-        if (!_bluetooth.isEnabled) {
+        if (!_bluetooth.isEnabled and !_lm.isLocationEnabled) {
             _btOffImage.visibility = View.VISIBLE
         }
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+        filter.addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
         requireContext().registerReceiver(_receiver, filter)
-
         GlobalScope.launch { syncCoroutine() }
         return root
     }
-
     override fun onDestroyView() {
         requireContext().unregisterReceiver(_receiver);
         super.onDestroyView()
@@ -179,44 +214,32 @@ class HomeFragment : Fragment() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
     @SuppressLint("MissingPermission")
     suspend fun syncCoroutine() {
         while(true){
-            if(_bluetooth.isEnabled){
+            if(_bluetooth.isEnabled and _lm.isLocationEnabled){
                 while(!_discoveryFinished){
-                    delay(1000L *_refreshRate/2)
+                    delay(1000L *_refreshRate)
                 }
                 _discoveryFinished = false
                 Log.i("Sync", "Synchronizing")
                 this@HomeFragment.requireActivity().runOnUiThread(Runnable {
-                    _btOffImage.visibility = View.INVISIBLE
                     _syncImage.visibility = View.VISIBLE
                 })
                 this._bluetooth.startDiscovery()
                 delay(1000L *_refreshRate)
             }
-            else{
-                this@HomeFragment.requireActivity().runOnUiThread(Runnable {
-                    _btOffImage.visibility = View.VISIBLE
-                })
-            }
         }
     }
 
     // graphical
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun generateView(
         inflater: LayoutInflater,
         container: ViewGroup?
     ){
-        val homeViewModel =
-            ViewModelProvider(this)[HomeViewModel::class.java]
-        _binding = FragmentCurrentBinding.inflate(inflater, container, false)
 
-
-        val textView: TextView = binding.textTitle
-        homeViewModel.text.observe(viewLifecycleOwner) {
-            textView.text = it
-        }
         // bindings
         _recyclerView = binding.visibleDevicesList
         _refreshButton = binding.buttonRefresh
@@ -233,15 +256,14 @@ class HomeFragment : Fragment() {
         _btOffImage.visibility = View.INVISIBLE
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
     @SuppressLint("MissingPermission")
     fun sync(v:View){
         Log.i("Button", "sync clicked")
-        if(_bluetooth.isEnabled){
-            if(_discoveryFinished){
+        if(_bluetooth.isEnabled and _lm.isLocationEnabled){
                 _discoveryFinished = false
                 _syncImage.visibility = View.VISIBLE
                 _bluetooth.startDiscovery()
-            }
         }
 
     }

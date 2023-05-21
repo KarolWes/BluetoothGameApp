@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -33,8 +34,9 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        val CREATE_INTERN_TABLE = ("CREATE TABLE " +
-                TABLE_NAME + "(" +
+        val CREATE_INTERN_TABLE = ("CREATE TABLE IF NOT EXISTS " +
+                TABLE_NAME +
+                "(" +
                 USER + " TEXT PRIMARY KEY," +
                 EMAIL + " TEXT," +
                 TOKEN + " TEXT," +
@@ -58,11 +60,17 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         var ans: ArrayList<String>? = null
         if(cursor.moveToFirst()){
             val user = cursor.getString(0)
+            Log.i("sql", user)
             val email = cursor.getString(1)
+            Log.i("sql", email)
             val token = cursor.getString(2)
+            Log.i("sql", token)
             val ref = cursor.getString(3)
-            val p = if (Integer.parseInt(cursor.getString(4)) == 1) "true" else "false"
-            val noName = if( Integer.parseInt(cursor.getString(5)) == 1) "true" else "false"
+            Log.i("sql", ref)
+            val p = cursor.getString(4)
+            Log.i("sql", p)
+            val noName = cursor.getString(5)
+            Log.i("sql", noName)
             ans = arrayListOf(user, email, token, ref, p, noName)
             cursor.close()
         }
@@ -112,11 +120,15 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(TOKEN, "")
 
         values.put(REF_RATE, ref_rate)
+        Log.i("sql", ref_rate.toString())
         values.put(PAIRED, paired)
+        Log.i("sql", paired.toString())
         values.put(NONAME, no_name)
+        Log.i("sql", values.toString())
 
         val db = this.writableDatabase
-        db.insert(TABLE_NAME,null, values)
+        val res = db.insert(TABLE_NAME,null, values)
+        Log.i("sql", "insert status: $res")
         db.close()
     }
 
