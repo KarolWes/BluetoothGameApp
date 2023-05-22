@@ -37,12 +37,12 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         val CREATE_INTERN_TABLE = ("CREATE TABLE IF NOT EXISTS " +
                 TABLE_NAME +
                 "(" +
-                USER + " TEXT PRIMARY KEY," +
-                EMAIL + " TEXT," +
-                TOKEN + " TEXT," +
-                TOKEN_DATE + " TEXT," +
-                REF_RATE + " INTEGER," +
-                PAIRED + " INTEGER," +
+                USER + " TEXT PRIMARY KEY, " +
+                EMAIL + " TEXT, " +
+                TOKEN + " TEXT, " +
+                TOKEN_DATE + " TEXT, " +
+                REF_RATE + " INTEGER, " +
+                PAIRED + " INTEGER, " +
                 NONAME + " INTEGER" +
                 ")")
         db.execSQL(CREATE_INTERN_TABLE)
@@ -65,13 +65,15 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
             Log.i("sql", email)
             val token = cursor.getString(2)
             Log.i("sql", token)
-            val ref = cursor.getString(3)
+            val tokenDate = cursor.getString(3)
+            Log.i("sql", tokenDate)
+            val ref = cursor.getString(4)
             Log.i("sql", ref)
-            val p = cursor.getString(4)
+            val p = cursor.getString(5)
             Log.i("sql", p)
-            val noName = cursor.getString(5)
+            val noName = cursor.getString(6)
             Log.i("sql", noName)
-            ans = arrayListOf(user, email, token, ref, p, noName)
+            ans = arrayListOf(user, email, token, tokenDate, ref, p, noName)
             cursor.close()
         }
         db.close()
@@ -118,8 +120,9 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(USER, "")
         values.put(EMAIL, "")
         values.put(TOKEN, "")
+        values.put(TOKEN_DATE, "")
 
-        values.put(REF_RATE, ref_rate)
+        values.put(REF_RATE, "")
         Log.i("sql", ref_rate.toString())
         values.put(PAIRED, paired)
         Log.i("sql", paired.toString())

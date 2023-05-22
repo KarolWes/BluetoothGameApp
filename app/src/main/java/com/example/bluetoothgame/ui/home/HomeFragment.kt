@@ -27,6 +27,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.bluetoothgame.DBInternal
 import com.example.bluetoothgame.Device
 import com.example.bluetoothgame.DeviceAdapter
 import com.example.bluetoothgame.databinding.FragmentCurrentBinding
@@ -59,6 +60,7 @@ class HomeFragment : Fragment() {
     private lateinit var _bluetooth: BluetoothAdapter
     private lateinit var _bm: BluetoothManager
     private lateinit var _lm: LocationManager
+    private lateinit var _internalDB: DBInternal
 
     //Constants
     private val binding get() = _binding!!
@@ -152,7 +154,11 @@ class HomeFragment : Fragment() {
             ViewModelProvider(this)[HomeViewModel::class.java]
         _binding = FragmentCurrentBinding.inflate(inflater, container, false)
         val root: View = binding.root
-
+        _internalDB = DBInternal(this.requireContext(), null, null, 1)
+        var token = _internalDB.getToken()
+        if(token == ""){
+            // Log in
+        }
         val textView: TextView = binding.textTitle
         homeViewModel.text.observe(viewLifecycleOwner) {
             textView.text = it

@@ -46,7 +46,6 @@ class SettingsFragment : Fragment() {
             textView.text = it
         }
         _db = DBInternal(this.requireContext(), null, null, 1)
-        _db.clear()
         val data = _db.getVals()
         if (data == null){
             _db.setDefault(_defaultRef, _defaultPaired, _defaultNNa)
@@ -67,7 +66,7 @@ class SettingsFragment : Fragment() {
         refBar.progress = (_defaultRef-20)/5
         refBar.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, b: Boolean) {
-                _defaultRef = progress
+                _defaultRef = progress*5+20
                 refText.text = "${getString(R.string.ref_rate)} $_defaultRef seconds"
             }
             override fun onStartTrackingTouch(seekBar: SeekBar) {}
@@ -77,8 +76,10 @@ class SettingsFragment : Fragment() {
         return root
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
     override fun onDestroyView() {
         super.onDestroyView()
+        _db.updateParameters("", arrayListOf(_defaultRef, _defaultPaired, _defaultNNa))
         _binding = null
     }
 }
