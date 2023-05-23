@@ -25,11 +25,14 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.DBInternal
 import com.example.bluetoothgame.Device
 import com.example.bluetoothgame.DeviceAdapter
+import com.example.bluetoothgame.LoginFragment
+import com.example.bluetoothgame.R
 import com.example.bluetoothgame.databinding.FragmentCurrentBinding
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -154,16 +157,24 @@ class HomeFragment : Fragment() {
             ViewModelProvider(this)[HomeViewModel::class.java]
         _binding = FragmentCurrentBinding.inflate(inflater, container, false)
         val root: View = binding.root
-        _internalDB = DBInternal(this.requireContext(), null, null, 1)
-        var token = _internalDB.getToken()
-        if(token == ""){
-            // Log in
-        }
         val textView: TextView = binding.textTitle
         homeViewModel.text.observe(viewLifecycleOwner) {
             textView.text = it
         }
         generateView(inflater, container)
+
+        _internalDB = DBInternal(this.requireContext(), null, null, 1)
+//        _internalDB.clear()
+        val ans = _internalDB.getVals()
+        if (ans == null){
+            _internalDB.setDefault(30, 0, 1)
+        }
+        var token = _internalDB.getToken()
+        if(token == ""){
+            // Log in
+            val nav = findNavController()
+            nav.navigate(R.id.naviagtion_login)
+        }
 
 
         // bluetooth adapter settings

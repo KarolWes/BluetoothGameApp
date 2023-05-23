@@ -24,6 +24,9 @@ class SettingsFragment : Fragment() {
     private var _defaultRef = 30
     private var _defaultPaired = 0
     private var _defaultNNa = 1
+    private var _defaultUser = ""
+    private var _defaultEmail = ""
+    private var _id = ""
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -51,9 +54,12 @@ class SettingsFragment : Fragment() {
             _db.setDefault(_defaultRef, _defaultPaired, _defaultNNa)
         }
         else{
-            _defaultRef = Integer.parseInt(data[3])
-            _defaultPaired = Integer.parseInt(data[4])
-            _defaultNNa = Integer.parseInt(data[5])
+            _id = data[0]
+            _defaultUser = data[1]
+            _defaultEmail = data[2]
+            _defaultRef = Integer.parseInt(data[5]) // TODO
+            _defaultPaired = Integer.parseInt(data[6])
+            _defaultNNa = Integer.parseInt(data[7])
         }
         _db.getVals()
         val pairedSw = binding.pairedSwitch
@@ -72,6 +78,10 @@ class SettingsFragment : Fragment() {
             override fun onStartTrackingTouch(seekBar: SeekBar) {}
             override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
+        val userText = binding.usernameText
+        userText.text = _defaultUser
+        val emailText = binding.emailText
+        emailText.text = _defaultEmail
 
         return root
     }
@@ -79,7 +89,7 @@ class SettingsFragment : Fragment() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onDestroyView() {
         super.onDestroyView()
-        _db.updateParameters("", arrayListOf(_defaultRef, _defaultPaired, _defaultNNa))
+        _db.updateParameters(_id, arrayListOf(_defaultRef, _defaultPaired, _defaultNNa))
         _binding = null
     }
 }
