@@ -12,6 +12,7 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import com.example.bluetoothgame.DBInternal
 import com.example.bluetoothgame.R
 import com.example.bluetoothgame.databinding.FragmentSettingsBinding
@@ -57,15 +58,22 @@ class SettingsFragment : Fragment() {
             _id = data[0]
             _defaultUser = data[1]
             _defaultEmail = data[2]
-            _defaultRef = Integer.parseInt(data[5]) // TODO
+            _defaultRef = Integer.parseInt(data[5])
             _defaultPaired = Integer.parseInt(data[6])
             _defaultNNa = Integer.parseInt(data[7])
         }
-        _db.getVals()
+        var token = _db.getToken()
+        if(token == ""){
+            // Log in
+            val nav = findNavController()
+            nav.navigate(R.id.naviagtion_login)
+        }
         val pairedSw = binding.pairedSwitch
         pairedSw.isChecked = _defaultPaired == 1
+        pairedSw.setOnClickListener { _defaultPaired = _defaultPaired xor 1 }
         val nnaSw = binding.unnamedSwitch
         nnaSw.isChecked = _defaultNNa == 1
+        nnaSw.setOnClickListener { _defaultNNa = _defaultNNa xor 1 }
         val refText = binding.refRateText
         refText.text = "${getString(R.string.ref_rate)} $_defaultRef seconds"
         val refBar = binding.refRateScroll
@@ -82,6 +90,12 @@ class SettingsFragment : Fragment() {
         userText.text = _defaultUser
         val emailText = binding.emailText
         emailText.text = _defaultEmail
+        val logOutButton = binding.logoutButton
+        logOutButton.setOnClickListener{
+            _db.logOut(_id)
+            val nav = findNavController()
+            nav.navigate(R.id.naviagtion_login)
+        }
 
         return root
     }

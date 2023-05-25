@@ -11,6 +11,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -22,7 +26,6 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
-import androidx.core.content.getSystemService
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
@@ -31,7 +34,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.DBInternal
 import com.example.bluetoothgame.Device
 import com.example.bluetoothgame.DeviceAdapter
-import com.example.bluetoothgame.LoginFragment
 import com.example.bluetoothgame.R
 import com.example.bluetoothgame.databinding.FragmentCurrentBinding
 import kotlinx.coroutines.GlobalScope
@@ -45,7 +47,10 @@ class HomeFragment : Fragment() {
     private var PERMISSIONS: Array<String> = emptyArray()
     private var _binding: FragmentCurrentBinding? = null
     private var _refreshRate: Int = 30
+    private var _scanNoName: Boolean = true
+    private var _scanPaired: Boolean = false
     private var _discoveryFinished: Boolean = true
+    private var _connected: Boolean = false
     private var _devices: ArrayList<Device> = arrayListOf()
     private var _toSend: ArrayList<Pair<Device, Long>> = arrayListOf()
     private var _newDevices: ArrayList<Device> = arrayListOf()
@@ -58,11 +63,13 @@ class HomeFragment : Fragment() {
     private lateinit var _syncImage: ImageView
     private lateinit var _uploadImage: ImageView
     private lateinit var _btOffImage: ImageView
+    private lateinit var _noWifiImage: ImageView
 
     // various
     private lateinit var _bluetooth: BluetoothAdapter
     private lateinit var _bm: BluetoothManager
     private lateinit var _lm: LocationManager
+    private lateinit var _cm: ConnectivityManager
     private lateinit var _internalDB: DBInternal
 
     //Constants
@@ -83,7 +90,9 @@ class HomeFragment : Fragment() {
                     }
                     if(device != null){
                         if(device.name == null){
-                            _newDevices.add(Device("-", device.address))
+                            if (_scanNoName){
+                                _newDevices.add(Device("-", device.address))
+                            }
                         }
                         else{
                             _newDevices.add(Device(device.name, device.address))
@@ -132,6 +141,30 @@ class HomeFragment : Fragment() {
             }
         }
     }
+    private val networkRequest = NetworkRequest.Builder()
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+        .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+        .build()
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        // network is available for use
+        override fun onAvailable(network: Network) {
+            super.onAvailable(network)
+            _connected = true
+            this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+                _noWifiImage.visibility = View.INVISIBLE
+            })
+        }
+        // lost network connection
+        override fun onLost(network: Network) {
+            super.onLost(network)
+            _connected = false
+            this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+                _noWifiImage.visibility = View.VISIBLE
+            })
+        }
+    }
 
     // functions
     // overrides
@@ -164,10 +197,14 @@ class HomeFragment : Fragment() {
         generateView(inflater, container)
 
         _internalDB = DBInternal(this.requireContext(), null, null, 1)
-//        _internalDB.clear()
         val ans = _internalDB.getVals()
         if (ans == null){
             _internalDB.setDefault(30, 0, 1)
+        }
+        else{
+            _refreshRate = Integer.parseInt(ans[5])
+            _scanPaired = Integer.parseInt(ans[6]) == 1
+            _scanNoName = Integer.parseInt(ans[7]) == 1
         }
         var token = _internalDB.getToken()
         if(token == ""){
@@ -180,6 +217,7 @@ class HomeFragment : Fragment() {
         // bluetooth adapter settings
         _bm = context?.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         _lm = context?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        _cm = context?.getSystemService(ConnectivityManager::class.java) as ConnectivityManager
         _bluetooth = _bm.adapter
         if (ActivityCompat.checkSelfPermission(
                 this.requireContext(),
@@ -191,16 +229,23 @@ class HomeFragment : Fragment() {
         if (!_bluetooth.isEnabled and !_lm.isLocationEnabled) {
             _btOffImage.visibility = View.VISIBLE
         }
+        if(!isConnected()){
+            _noWifiImage.visibility = View.VISIBLE
+        }
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
         filter.addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
         requireContext().registerReceiver(_receiver, filter)
+        _cm.requestNetwork(networkRequest, networkCallback)
         GlobalScope.launch { syncCoroutine() }
         return root
     }
+    @SuppressLint("MissingPermission")
     override fun onDestroyView() {
+        _discoveryFinished = true
+        _bluetooth.cancelDiscovery()
         requireContext().unregisterReceiver(_receiver);
         super.onDestroyView()
         _binding = null
@@ -213,7 +258,7 @@ class HomeFragment : Fragment() {
             _newDevices = arrayListOf()
         }
         else{
-            val tmp = ArrayList(_devices.toSet().minus(_newDevices.toSet()))
+            val tmp = ArrayList(_devices.toSet().minus(_newDevices.toSet()))  // TODO
             for (entry in tmp){
                 Log.i("bluetoothLog", "To send -> $entry")
                 _toSend += Pair(entry, System.currentTimeMillis())
@@ -229,6 +274,20 @@ class HomeFragment : Fragment() {
                 ActivityCompat.requestPermissions(this.requireActivity(), perm, 1)
             }
         }
+    }
+
+    private fun isConnected():Boolean{
+        val capabilities =_cm.getNetworkCapabilities(_cm.activeNetwork)
+        if (capabilities != null) {
+            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                return true
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                return true
+            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                return true
+            }
+        }
+        return false
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -256,7 +315,6 @@ class HomeFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?
     ){
-
         // bindings
         _recyclerView = binding.visibleDevicesList
         _refreshButton = binding.buttonRefresh
@@ -271,6 +329,8 @@ class HomeFragment : Fragment() {
         _uploadImage.visibility = View.INVISIBLE
         _btOffImage = binding.bluetoothOffImage
         _btOffImage.visibility = View.INVISIBLE
+        _noWifiImage = binding.noWifiImage
+        _noWifiImage.visibility = View.INVISIBLE
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -286,11 +346,18 @@ class HomeFragment : Fragment() {
     }
 
     fun upload(v:View){
-        Log.i("Button", "upload clicked")
+        if(_connected){
+            Log.i("Button", "upload clicked")
+        }
     }
 
+    @SuppressLint("MissingPermission")
+    @RequiresApi(Build.VERSION_CODES.P)
     fun cancel(v:View){
-        Log.i("Button", "cancel clicked")
+        if(_bluetooth.isEnabled and _lm.isLocationEnabled) {
+            Log.i("Button", "cancel clicked")
+            _bluetooth.cancelDiscovery()
+        }
     }
 
 }

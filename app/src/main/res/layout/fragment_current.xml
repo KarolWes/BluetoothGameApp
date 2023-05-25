@@ -90,11 +90,14 @@
         android:layout_width="38dp"
         android:layout_height="37dp"
         android:layout_marginEnd="16dp"
+        android:backgroundTint="@color/gold"
         android:src="@android:drawable/ic_popup_sync"
+        android:tint="@color/gray_500"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/textTitle"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/textTitle"
-        tools:visibility="invisible" />
+        tools:visibility="visible" />
 
     <ImageView
         android:id="@+id/uploadImage"
@@ -102,10 +105,12 @@
         android:layout_height="35dp"
         android:layout_marginStart="16dp"
         android:src="@android:drawable/stat_sys_upload"
+        android:tint="@color/gray_500"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/textTitle"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/textTitle"
-        tools:visibility="invisible" />
+        tools:visibility="visible" />
 
     <ImageView
         android:id="@+id/bluetoothOffImage"
@@ -116,5 +121,18 @@
         app:layout_constraintEnd_toEndOf="@+id/visibleDevicesList"
         app:layout_constraintStart_toStartOf="@+id/divider"
         app:layout_constraintTop_toTopOf="@+id/divider" />
+
+    <ImageView
+        android:id="@+id/noWifiImage"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginStart="16dp"
+        android:src="@drawable/baseline_wifi_off_24"
+        android:tint="@color/gray_500"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toTopOf="@+id/divider"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

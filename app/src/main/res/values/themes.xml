@@ -11,6 +11,8 @@
         <item name="colorOnSecondary">@color/brown_700</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="android:button">@color/gold</item>
+
         <!-- Customize your theme here. -->
     </style>
 </resources>

@@ -104,6 +104,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         {
             t = ""
         }
+        Log.i("sql", "Login token -> $t")
         return t
     }
 
@@ -164,7 +165,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         db.close()
     }
 
-    fun logOut(user: String){
+    fun logOut(id: String){
         val old = this.getVals()!!
         val values = ContentValues()
         values.put(ID, "")
@@ -177,7 +178,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(PAIRED, old[6])
         values.put(NONAME, old[7])
         val db = this.writableDatabase
-        db.update(TABLE_NAME, values, "$USER=?", arrayOf(user))
+        db.update(TABLE_NAME, values, "$ID=?", arrayOf(id))
         db.close()
     }
 

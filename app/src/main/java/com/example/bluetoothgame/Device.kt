@@ -8,6 +8,7 @@ import android.widget.Button
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.databinding.DeviceEntryLayoutBinding
+import kotlin.reflect.typeOf
 
 class Device(val name: String, val address:String, var my: Boolean =false) {
 
@@ -24,6 +25,18 @@ class Device(val name: String, val address:String, var my: Boolean =false) {
 
     override fun toString(): String {
         return "$name $address"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return if(other is Device){
+            other.address== address
+        } else{
+            super.equals(other)
+        }
+    }
+
+    override fun hashCode(): Int {
+        return address.hashCode()
     }
 }
 class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<DeviceAdapter.ViewHolder>(){
