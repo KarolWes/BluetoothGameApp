@@ -81,6 +81,18 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         return ans
     }
 
+    fun getUser():String{
+        val q = "SELECT $USER FROM $TABLE_NAME"
+        val db = this.writableDatabase
+        val cursor = db.rawQuery(q, null)
+        var u = ""
+        if(cursor.moveToFirst()){
+            u = cursor.getString(0)
+        }
+        db.close()
+        return u
+    }
+
     fun getToken():String{
         val q = "SELECT $TOKEN, $TOKEN_DATE FROM $TABLE_NAME"
         val db = this.writableDatabase
@@ -239,7 +251,7 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
     }
 
     fun isRegistered(adr:String): String? {
-        val q = "SELECT ID FROM $TABLE_NAME WHERE $MAC ='$adr'"
+        val q = "SELECT $ID FROM $TABLE_NAME WHERE $MAC ='$adr'"
         val db = this.writableDatabase
         val cursor = db.rawQuery(q, null)
         var id:String? = null
@@ -250,11 +262,11 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
         return id
     }
 
-    fun getAll(user:String): MutableList<Device> {
+    fun getAll(user:String): ArrayList<Device> {
         val q = "SELECT * FROM $TABLE_NAME WHERE $ID ='$user'"
         val db = this.writableDatabase
         val cursor = db.rawQuery(q, null)
-        var ans = mutableListOf<Device>()
+        val ans = arrayListOf<Device>()
         if (cursor.moveToFirst()) {
             while (!cursor.isAfterLast) {
                 val adr: String = cursor.getString(1)

@@ -1,13 +1,36 @@
 package com.example.bluetoothgame
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Build
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.databinding.DeviceEntryLayoutBinding
+import com.example.bluetoothgame.ui.home.HomeFragment
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import okhttp3.ResponseBody
+import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Header
+import retrofit2.http.Headers
+import retrofit2.http.POST
 import kotlin.reflect.typeOf
 
 class Device(val name: String, val address:String, var my: Boolean =false) {
@@ -40,7 +63,26 @@ class Device(val name: String, val address:String, var my: Boolean =false) {
     }
 }
 class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<DeviceAdapter.ViewHolder>(){
+    interface RestApiRegisterDevice{
+        @Headers("Content-Type: application/json")
+        @POST("devices/register/")
+        fun registerDevice(
+            @Header("Authorization") token:String,
+            @Body dev: Map<String, String>): Call<ResponseBody>
+
+    }
+
+
     private lateinit var _binding: DeviceEntryLayoutBinding
+    private lateinit var _myDevicesDB: DBOwnedDevices
+    private lateinit var _internalDB: DBInternal
+    private var userId = ""
+    private var token = ""
+    private var _myDevicesList: ArrayList<Device> = arrayListOf()
+    private val retrofit = Retrofit.Builder()
+        .baseUrl("https://api.most-seen-person.rmst.eu/api/v1/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
     inner class ViewHolder(entryView: View, context: Context) : RecyclerView.ViewHolder(entryView) {
         val nameTextView = _binding.deviceTagText
         val addressTextView = _binding.deviceMacText
@@ -49,23 +91,46 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
         val context = context
     }
 
+
+    @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         _binding = DeviceEntryLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        _myDevicesDB = DBOwnedDevices(parent.context, null, null, 1)
+        _internalDB = DBInternal(parent.context, null, null, 1)
+        userId = _internalDB.getUser()
+        token = _internalDB.getToken()
+        _myDevicesList = _myDevicesDB.getAll(userId)
         val deviceView = _binding.root
         return ViewHolder(deviceView, parent.context)
     }
 
     fun markOwn(v: View?, position: Int, button: Button) {
-        if (v != null) {
-            val dev: Device = devices[position]
-            dev.my = dev.my xor true
-            button.text = if (!dev.my) "Mark as my" else "Mark as not my"
+        if(HomeFragment.connected){
+            button.backgroundTintList= ColorStateList.valueOf(Color.parseColor("#03AC13"))
+            if (v != null) {
+                val dev: Device = devices[position]
+                if(dev.my){
+                    _myDevicesDB.remove(dev.address)
+                }
+                else{
+                    _myDevicesDB.put(userId, dev)
+                    GlobalScope.launch { registerDevice(dev, button) }
+                }
+                dev.my = dev.my xor true
+                button.text = if (!dev.my) "Mark as my" else "Mark as not my"
+            }
         }
+        else{
+            button.text = "No internet"
+            button.backgroundTintList= ColorStateList.valueOf(Color.parseColor("#990000"))
+        }
+
     }
 
     // Involves populating data into the item through holder
     override fun onBindViewHolder(viewHolder: DeviceAdapter.ViewHolder, position: Int) {
         val dev: Device = devices[position]
+        dev.my = dev in _myDevicesList
         if(position % 2 == 1){
             viewHolder.row.setBackgroundColor(
                 ContextCompat.getColor(viewHolder.context, R.color.beige_800))
@@ -88,5 +153,33 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
     // Returns the total count of items in the list
     override fun getItemCount(): Int {
         return devices.size
+    }
+
+    suspend fun registerDevice(dev:Device, button: Button){
+        val apiService = retrofit.create(RestApiRegisterDevice::class.java)
+        val body = mapOf(
+            "mac" to dev.address,
+            "name" to dev.name
+        )
+        apiService.registerDevice("Token $token", body).enqueue(object : Callback<ResponseBody> {
+            override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+                if (response.code().toString()[0] != '2') {
+                    Log.i("http", "Error: ${response.code()}")
+                    Log.i("http", "${response.errorBody()?.string()}")
+                    button.text = "Someone else"
+                    button.backgroundTintList= ColorStateList.valueOf(Color.parseColor("#A9A9A9"))
+                    button.isClickable = false
+                    button.isEnabled = false
+                }
+                else{
+                    response.body()?.string()?.let { Log.i("http", it) }
+                }
+
+            }
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                Log.i("http", "Error")
+            }
+        })
+        return
     }
 }

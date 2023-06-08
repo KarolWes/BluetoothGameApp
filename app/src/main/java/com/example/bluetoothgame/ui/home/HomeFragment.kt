@@ -42,6 +42,9 @@ import kotlinx.coroutines.launch
 
 
 class HomeFragment : Fragment() {
+    companion object{
+        var connected: Boolean = false
+    }
 
     // variables
     private var PERMISSIONS: Array<String> = emptyArray()
@@ -50,7 +53,6 @@ class HomeFragment : Fragment() {
     private var _scanNoName: Boolean = true
     private var _scanPaired: Boolean = false
     private var _discoveryFinished: Boolean = true
-    private var _connected: Boolean = false
     private var _devices: ArrayList<Device> = arrayListOf()
     private var _toSend: ArrayList<Pair<Device, Long>> = arrayListOf()
     private var _newDevices: ArrayList<Device> = arrayListOf()
@@ -151,7 +153,7 @@ class HomeFragment : Fragment() {
         // network is available for use
         override fun onAvailable(network: Network) {
             super.onAvailable(network)
-            _connected = true
+            connected = true
             this@HomeFragment.requireActivity().runOnUiThread(Runnable {
                 _noWifiImage.visibility = View.INVISIBLE
             })
@@ -159,7 +161,7 @@ class HomeFragment : Fragment() {
         // lost network connection
         override fun onLost(network: Network) {
             super.onLost(network)
-            _connected = false
+            connected = false
             this@HomeFragment.requireActivity().runOnUiThread(Runnable {
                 _noWifiImage.visibility = View.VISIBLE
             })
@@ -346,7 +348,7 @@ class HomeFragment : Fragment() {
     }
 
     fun upload(v:View){
-        if(_connected){
+        if(connected){
             Log.i("Button", "upload clicked")
         }
     }
