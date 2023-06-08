@@ -23,6 +23,8 @@ import androidx.navigation.fragment.findNavController
 import com.example.bluetoothgame.databinding.FragmentLoginBinding
 import com.example.bluetoothgame.ui.leaderboard.LeaderboardViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
 import org.json.JSONObject
 import retrofit2.Call
@@ -50,6 +52,7 @@ class LoginFragment : Fragment() {
 
     private var _binding: FragmentLoginBinding? = null
     private var _connected: Boolean = false
+    private var _mainReady = false
 
     private lateinit var _submitButton:Button
     private lateinit var _switchButton:Button
@@ -138,11 +141,9 @@ class LoginFragment : Fragment() {
         _loginError.visibility = View.INVISIBLE
         _mailError = binding.errorMailText
         _mailError.visibility = View.GONE
-        _nav = MainActivity.bindingMain.navView
-        for (i in _nav.menu){
-            i.isEnabled = false
-            i.isCheckable = false
-        }
+        GlobalScope.launch { getBinding() }
+
+
 
         _switchButton.setOnClickListener{
             switch(it)
@@ -153,6 +154,20 @@ class LoginFragment : Fragment() {
         val cm = context?.getSystemService(ConnectivityManager::class.java) as ConnectivityManager
         cm.requestNetwork(networkRequest, networkCallback)
         return root
+    }
+
+    suspend fun getBinding(){
+        while(!MainActivity.bindingIsInitialized()){}
+        this@LoginFragment.requireActivity().runOnUiThread(Runnable {
+            _nav = MainActivity.bindingMain.navView
+            for (i in _nav.menu){
+                i.isEnabled = false
+                i.isCheckable = false
+            }
+        })
+        _mainReady = true
+        Log.i("ready", "binding obtained")
+        return
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -263,9 +278,11 @@ class LoginFragment : Fragment() {
                         val email = u.getString("email")
                         Log.i("http", "log in finished, moving to main")
                         _db.logIn(id, user, email, token)
-                        for (i in _nav.menu){
-                            i.isEnabled = true
-                            i.isCheckable = true
+                        if (_mainReady) {
+                            for (i in _nav.menu) {
+                                i.isEnabled = true
+                                i.isCheckable = true
+                            }
                         }
                         val nav = findNavController()
                         nav.navigate(R.id.navigation_current_session)
