@@ -3,10 +3,6 @@ package com.example.bluetoothgame
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
@@ -21,7 +17,6 @@ import com.example.bluetoothgame.ui.home.HomeFragment
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
-import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -31,7 +26,6 @@ import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
-import kotlin.reflect.typeOf
 
 class Device(val name: String, val address:String, var my: Boolean =false) {
 
@@ -76,8 +70,6 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
     private lateinit var _binding: DeviceEntryLayoutBinding
     private lateinit var _myDevicesDB: DBOwnedDevices
     private lateinit var _internalDB: DBInternal
-    private var userId = ""
-    private var token = ""
     private var _myDevicesList: ArrayList<Device> = arrayListOf()
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.most-seen-person.rmst.eu/api/v1/")
@@ -97,9 +89,7 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
         _binding = DeviceEntryLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         _myDevicesDB = DBOwnedDevices(parent.context, null, null, 1)
         _internalDB = DBInternal(parent.context, null, null, 1)
-        userId = _internalDB.getUser()
-        token = _internalDB.getToken()
-        _myDevicesList = _myDevicesDB.getAll(userId)
+        _myDevicesList = _myDevicesDB.getAll(HomeFragment.userId)
         val deviceView = _binding.root
         return ViewHolder(deviceView, parent.context)
     }
@@ -113,7 +103,7 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
                     _myDevicesDB.remove(dev.address)
                 }
                 else{
-                    _myDevicesDB.put(userId, dev)
+                    _myDevicesDB.put(HomeFragment.userId, dev)
                     GlobalScope.launch { registerDevice(dev, button) }
                 }
                 dev.my = dev.my xor true
@@ -161,7 +151,7 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
             "mac" to dev.address,
             "name" to dev.name
         )
-        apiService.registerDevice("Token $token", body).enqueue(object : Callback<ResponseBody> {
+        apiService.registerDevice("Token ${HomeFragment.token}", body).enqueue(object : Callback<ResponseBody> {
             override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
                 if (response.code().toString()[0] != '2') {
                     Log.i("http", "Error: ${response.code()}")

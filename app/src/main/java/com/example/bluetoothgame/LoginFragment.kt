@@ -21,6 +21,7 @@ import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.example.bluetoothgame.databinding.FragmentLoginBinding
+import com.example.bluetoothgame.ui.home.HomeFragment
 import com.example.bluetoothgame.ui.leaderboard.LeaderboardViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.GlobalScope
@@ -284,6 +285,8 @@ class LoginFragment : Fragment() {
                                 i.isCheckable = true
                             }
                         }
+                        HomeFragment.token = token
+                        HomeFragment.userId = id
                         val nav = findNavController()
                         nav.navigate(R.id.navigation_current_session)
                     }

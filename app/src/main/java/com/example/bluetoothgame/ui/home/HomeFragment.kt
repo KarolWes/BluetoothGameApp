@@ -10,6 +10,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
@@ -36,14 +38,43 @@ import com.example.bluetoothgame.Device
 import com.example.bluetoothgame.DeviceAdapter
 import com.example.bluetoothgame.R
 import com.example.bluetoothgame.databinding.FragmentCurrentBinding
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.ResponseBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.Header
+import retrofit2.http.Headers
+import retrofit2.http.POST
+import java.lang.reflect.Field
+import java.lang.reflect.InvocationTargetException
 
 
+data class PostBody(
+    var recorder_mac: String,
+    var recorder_name: String,
+    var records: Array<Map<String,String>>
+)
+
+@OptIn(DelicateCoroutinesApi::class)
 class HomeFragment : Fragment() {
     companion object{
         var connected: Boolean = false
+        var token:String = ""
+        var userId:String = ""
+        var myMac = ""
+    }
+    interface RestApiFoundDevices {
+        @Headers("Content-Type: application/json")
+        @POST("records/record")
+        fun saveRecord(@Header("Authorization") token:String,
+                      @Body records: PostBody): Call<ResponseBody>
     }
 
     // variables
@@ -56,6 +87,7 @@ class HomeFragment : Fragment() {
     private var _devices: ArrayList<Device> = arrayListOf()
     private var _toSend: ArrayList<Pair<Device, Long>> = arrayListOf()
     private var _newDevices: ArrayList<Device> = arrayListOf()
+    private var _username: String = ""
 
     // layout elements
     private lateinit var _recyclerView: RecyclerView
@@ -76,6 +108,10 @@ class HomeFragment : Fragment() {
 
     //Constants
     private val binding get() = _binding!!
+    private val retrofit = Retrofit.Builder()
+        .baseUrl("https://api.most-seen-person.rmst.eu/api/v1/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
     private val _receiver: BroadcastReceiver = object : BroadcastReceiver() {
         @RequiresApi(Build.VERSION_CODES.P)
         override fun onReceive(context: Context, intent: Intent) {
@@ -154,17 +190,17 @@ class HomeFragment : Fragment() {
         override fun onAvailable(network: Network) {
             super.onAvailable(network)
             connected = true
-            this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+            this@HomeFragment.requireActivity().runOnUiThread {
                 _noWifiImage.visibility = View.INVISIBLE
-            })
+            }
         }
         // lost network connection
         override fun onLost(network: Network) {
             super.onLost(network)
             connected = false
-            this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+            this@HomeFragment.requireActivity().runOnUiThread {
                 _noWifiImage.visibility = View.VISIBLE
-            })
+            }
         }
     }
 
@@ -204,11 +240,19 @@ class HomeFragment : Fragment() {
             _internalDB.setDefault(30, 0, 1)
         }
         else{
+            _username = ans[1]
             _refreshRate = Integer.parseInt(ans[5])
             _scanPaired = Integer.parseInt(ans[6]) == 1
             _scanNoName = Integer.parseInt(ans[7]) == 1
         }
-        var token = _internalDB.getToken()
+        token = _internalDB.getToken()
+        userId = _internalDB.getUser()
+        Log.i("Internal", "Fetching mac")
+        val tmp = getBluetoothMacAddress()
+        if(tmp != null){
+            myMac  = tmp
+        }
+        Log.i("Mac", myMac)
         if(token == ""){
             // Log in
             val nav = findNavController()
@@ -221,6 +265,7 @@ class HomeFragment : Fragment() {
         _lm = context?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         _cm = context?.getSystemService(ConnectivityManager::class.java) as ConnectivityManager
         _bluetooth = _bm.adapter
+        Log.i("BT", _bluetooth.name)
         if (ActivityCompat.checkSelfPermission(
                 this.requireContext(),
                 Manifest.permission.BLUETOOTH_SCAN
@@ -248,7 +293,7 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         _discoveryFinished = true
         _bluetooth.cancelDiscovery()
-        requireContext().unregisterReceiver(_receiver);
+        requireContext().unregisterReceiver(_receiver)
         super.onDestroyView()
         _binding = null
     }
@@ -260,13 +305,16 @@ class HomeFragment : Fragment() {
             _newDevices = arrayListOf()
         }
         else{
-            val tmp = ArrayList(_devices.toSet().minus(_newDevices.toSet()))  // TODO
+            val tmp = ArrayList(_devices.toSet().minus(_newDevices.toSet()))
             for (entry in tmp){
                 Log.i("bluetoothLog", "To send -> $entry")
                 _toSend += Pair(entry, System.currentTimeMillis())
             }
             _devices = _newDevices
             _newDevices = arrayListOf()
+            if(connected){
+                GlobalScope.launch { saveDevicesOnApi() }
+            }
         }
         _syncImage.visibility = View.INVISIBLE
     }
@@ -302,13 +350,78 @@ class HomeFragment : Fragment() {
                 }
                 _discoveryFinished = false
                 Log.i("Sync", "Synchronizing")
-                this@HomeFragment.requireActivity().runOnUiThread(Runnable {
+                this@HomeFragment.requireActivity().runOnUiThread {
                     _syncImage.visibility = View.VISIBLE
-                })
+                }
                 this._bluetooth.startDiscovery()
                 delay(1000L *_refreshRate)
             }
         }
+    }
+
+    @SuppressLint("DiscouragedPrivateApi") // DOESN'T WORK
+    private fun getBluetoothMacAddress(): String? {
+        val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        var bluetoothMacAddress: String? = ""
+        try {
+            val mServiceField: Field = bluetoothAdapter.javaClass.getDeclaredField("mService")
+            mServiceField.isAccessible = true
+            val btManagerService: Any = mServiceField.get(bluetoothAdapter)
+            if (btManagerService != null) {
+                bluetoothMacAddress = btManagerService.javaClass.getMethod("getAddress")
+                    .invoke(btManagerService) as String
+            }
+        } catch (e: NoSuchFieldException) {
+        } catch (e: NoSuchMethodException) {
+        } catch (e: IllegalAccessException) {
+        } catch (e: InvocationTargetException) {
+        }
+        return bluetoothMacAddress
+    }
+
+    suspend fun saveDevicesOnApi(){
+        val local = _toSend
+        _toSend = arrayListOf() // clear the list
+        val apiService = retrofit.create(RestApiFoundDevices::class.java)
+        var rec: Array<Map<String, String>> = arrayOf()
+        for (el in local){
+            if(!el.first.my){
+                val record = mapOf(
+                    "mac" to el.first.address,
+                    "name" to el.first.name
+                )
+                rec += record
+            }
+        }
+        if(rec.isNotEmpty()){
+            val body = PostBody(
+                recorder_mac = myMac,
+                recorder_name = _username,
+                records = rec
+            )
+            apiService.saveRecord("Token $token", body).enqueue(object :
+                Callback<ResponseBody> {
+                override fun onResponse(call: Call<ResponseBody>, response: Response<ResponseBody>) {
+                    if (response.code().toString()[0] != '2') {
+                        Log.i("http", "Error: ${response.code()}")
+                        Log.i("http", "${response.errorBody()?.string()}")
+                        // some popup?
+                    }
+                    else{
+                        response.body()?.string()?.let { Log.i("http", it) }
+                    }
+                }
+                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    Log.i("http", "Error")
+                }
+            })
+        }
+        else{
+            Log.i("http","Nothing to send")
+        }
+
+        return
+
     }
 
     // graphical
@@ -350,6 +463,11 @@ class HomeFragment : Fragment() {
     fun upload(v:View){
         if(connected){
             Log.i("Button", "upload clicked")
+            for(el in _devices){
+                _toSend += Pair(el, System.currentTimeMillis() )
+            }
+            GlobalScope.launch { saveDevicesOnApi() }
+
         }
     }
 
@@ -359,6 +477,12 @@ class HomeFragment : Fragment() {
         if(_bluetooth.isEnabled and _lm.isLocationEnabled) {
             Log.i("Button", "cancel clicked")
             _bluetooth.cancelDiscovery()
+            for(el in _devices){
+                _toSend += Pair(el, System.currentTimeMillis() )
+            }
+            if(connected){
+                GlobalScope.launch { saveDevicesOnApi() }
+            }
         }
     }
 
