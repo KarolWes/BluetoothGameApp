@@ -13,6 +13,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         lateinit var bindingMain: ActivityMainBinding
+        fun bindingIsInitialized() = this::bindingMain.isInitialized
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -20,6 +21,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         bindingMain = ActivityMainBinding.inflate(layoutInflater)
+
         setContentView(bindingMain.root)
 
         val navView: BottomNavigationView = bindingMain.navView
