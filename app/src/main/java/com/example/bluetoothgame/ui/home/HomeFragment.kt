@@ -68,7 +68,7 @@ class HomeFragment : Fragment() {
         var connected: Boolean = false
         var token:String = ""
         var userId:String = ""
-        var myMac = ""
+        var myMac = "00:00:00:00:00:00"
     }
     interface RestApiFoundDevices {
         @Headers("Content-Type: application/json")
@@ -244,14 +244,10 @@ class HomeFragment : Fragment() {
             _refreshRate = Integer.parseInt(ans[5])
             _scanPaired = Integer.parseInt(ans[6]) == 1
             _scanNoName = Integer.parseInt(ans[7]) == 1
+            myMac = ans[8]
         }
         token = _internalDB.getToken()
         userId = _internalDB.getUser()
-        Log.i("Internal", "Fetching mac")
-        val tmp = getBluetoothMacAddress()
-        if(tmp != null){
-            myMac  = tmp
-        }
         Log.i("Mac", myMac)
         if(token == ""){
             // Log in

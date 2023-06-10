@@ -28,6 +28,7 @@ class SettingsFragment : Fragment() {
     private var _defaultUser = ""
     private var _defaultEmail = ""
     private var _id = ""
+    private var _mac = "00:00:00:00:00:00"
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -61,6 +62,7 @@ class SettingsFragment : Fragment() {
             _defaultRef = Integer.parseInt(data[5])
             _defaultPaired = Integer.parseInt(data[6])
             _defaultNNa = Integer.parseInt(data[7])
+            _mac = data[8]
         }
         var token = _db.getToken()
         if(token == ""){
@@ -103,7 +105,7 @@ class SettingsFragment : Fragment() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onDestroyView() {
         super.onDestroyView()
-        _db.updateParameters(_id, arrayListOf(_defaultRef, _defaultPaired, _defaultNNa))
+        _db.updateParameters(_id, arrayListOf(_defaultRef, _defaultPaired, _defaultNNa), _mac)
         _binding = null
     }
 }
