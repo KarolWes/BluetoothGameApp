@@ -26,6 +26,7 @@ import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast.LENGTH_SHORT
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
@@ -36,8 +37,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.DBInternal
 import com.example.bluetoothgame.Device
 import com.example.bluetoothgame.DeviceAdapter
+import com.example.bluetoothgame.MainActivity
 import com.example.bluetoothgame.R
 import com.example.bluetoothgame.databinding.FragmentCurrentBinding
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -49,6 +52,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
 import retrofit2.http.POST
@@ -72,7 +76,7 @@ class HomeFragment : Fragment() {
     }
     interface RestApiFoundDevices {
         @Headers("Content-Type: application/json")
-        @POST("records/record")
+        @POST("records/record/")
         fun saveRecord(@Header("Authorization") token:String,
                       @Body records: PostBody): Call<ResponseBody>
     }
@@ -295,7 +299,15 @@ class HomeFragment : Fragment() {
     }
 
     // technical
+    @SuppressLint("MissingPermission")
     fun prepareDeviceList(){
+        if(!_scanPaired){
+            val paired = _bluetooth.bondedDevices
+            paired.forEach { dev ->
+                val d = Device(dev.name, dev.address)
+                _newDevices.remove(d)
+            }
+        }
         if(_devices.isEmpty()){
             _devices = _newDevices
             _newDevices = arrayListOf()
@@ -401,13 +413,15 @@ class HomeFragment : Fragment() {
                     if (response.code().toString()[0] != '2') {
                         Log.i("http", "Error: ${response.code()}")
                         Log.i("http", "${response.errorBody()?.string()}")
-                        // some popup?
+                        Snackbar.make(MainActivity.bindingMain.mainLayout, R.string.upload_error, Snackbar.LENGTH_SHORT).show()
                     }
                     else{
                         response.body()?.string()?.let { Log.i("http", it) }
+                        Snackbar.make(MainActivity.bindingMain.mainLayout, R.string.upload_done, Snackbar.LENGTH_SHORT).show()
                     }
                 }
                 override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                    Snackbar.make(MainActivity.bindingMain.mainLayout, R.string.upload_error, Snackbar.LENGTH_SHORT).show()
                     Log.i("http", "Error")
                 }
             })
@@ -415,9 +429,7 @@ class HomeFragment : Fragment() {
         else{
             Log.i("http","Nothing to send")
         }
-
         return
-
     }
 
     // graphical

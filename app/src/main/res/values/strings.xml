@@ -10,4 +10,6 @@
         Therefore, the dev team would like to kindly ask You to provide this value form device settings. (Settings > About Device > Status > BlueTooth Address)
         The dev team wants to assure You, that it is doing everything to keep your data secure.
     </string>
+    <string name="upload_error">Couldn\'t upload</string>
+    <string name="upload_done">Upload completed</string>
 </resources>
