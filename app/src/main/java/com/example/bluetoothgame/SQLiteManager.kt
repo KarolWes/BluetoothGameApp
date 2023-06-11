@@ -8,7 +8,6 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.Period
 import java.time.format.DateTimeFormatter
 
@@ -30,6 +29,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         val REF_RATE = "refresh_rate"
         val PAIRED = "scan_paired"
         val NONAME = "scan_no_name"
+        val MAC = "mac_address"
 
     }
 
@@ -44,7 +44,8 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
                 TOKEN_DATE + " TEXT, " +
                 REF_RATE + " INTEGER, " +
                 PAIRED + " INTEGER, " +
-                NONAME + " INTEGER" +
+                NONAME + " INTEGER, " +
+                MAC + " TEXT " +
                 ")")
         db.execSQL(CREATE_INTERN_TABLE)
     }
@@ -75,11 +76,24 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
             Log.i("sql", p)
             val noName = cursor.getString(7)
             Log.i("sql", noName)
-            ans = arrayListOf(id, user, email, token, tokenDate, ref, p, noName)
+            val mac = cursor.getString(8)
+            ans = arrayListOf(id, user, email, token, tokenDate, ref, p, noName, mac)
             cursor.close()
         }
         db.close()
         return ans
+    }
+
+    fun getUser():String{
+        val q = "SELECT $USER FROM $TABLE_NAME"
+        val db = this.writableDatabase
+        val cursor = db.rawQuery(q, null)
+        var u = ""
+        if(cursor.moveToFirst()){
+            u = cursor.getString(0)
+        }
+        db.close()
+        return u
     }
 
     fun getToken():String{
@@ -108,7 +122,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         return t
     }
 
-    fun updateParameters(userId:String, params:ArrayList<Int>){
+    fun updateParameters(userId:String, params:ArrayList<Int>, mac: String){
         val old = this.getVals()!!
         val values = ContentValues()
         values.put(ID, old[0])
@@ -120,6 +134,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(REF_RATE, params[0])
         values.put(PAIRED, params[1])
         values.put(NONAME, params[2])
+        values.put(MAC, mac)
         val db = this.writableDatabase
         db.update(TABLE_NAME, values, "$ID=?", arrayOf(userId))
         db.close()
@@ -139,6 +154,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         Log.i("sql", paired.toString())
         values.put(NONAME, no_name)
         Log.i("sql", values.toString())
+        values.put(MAC, "00:00:00:00:00:00")
 
         val db = this.writableDatabase
         val res = db.insert(TABLE_NAME,null, values)
@@ -146,7 +162,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         db.close()
     }
 
-    fun logIn(id:String, user:String, email:String, token:String){
+    fun logIn(id:String, user:String, email:String, token:String, mac:String){
         val old = this.getVals()!!
         val values = ContentValues()
         values.put(ID, id)
@@ -157,6 +173,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(REF_RATE, old[5])
         values.put(PAIRED, old[6])
         values.put(NONAME, old[7])
+        values.put(MAC, mac)
 
         val db = this.writableDatabase
         this.clear()
@@ -177,6 +194,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(REF_RATE, old[5])
         values.put(PAIRED, old[6])
         values.put(NONAME, old[7])
+        values.put(MAC, old[8])
         val db = this.writableDatabase
         db.update(TABLE_NAME, values, "$ID=?", arrayOf(id))
         db.close()
@@ -192,4 +210,87 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         onUpgrade(db, 1, 2)
     }
 }
+
+
+class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.CursorFactory?, version: Int):
+    SQLiteOpenHelper(context, DBOwnedDevices.DATABASE_NAME, factory, DBOwnedDevices.DATABASE_VERSION){
+    companion object {
+        private val DATABASE_VERSION = 1
+        private val DATABASE_NAME = "owned.db"
+        val TABLE_NAME = "owned"
+        val COUNTER = "counter"
+
+        val ID = "user_id"
+        val MAC = "mac_address"
+        val NAME = "device_name"
+
+    }
+
+    override fun onCreate(db: SQLiteDatabase) {
+        val CREATE_OWNED_TABLE = ("CREATE TABLE IF NOT EXISTS " +
+                TABLE_NAME +
+                "(" +
+                ID + " TEXT PRIMARY KEY, "+
+                MAC + " TEXT, " +
+                NAME + " TEXT" +
+                ")")
+        db.execSQL(CREATE_OWNED_TABLE)
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_NAME")
+        onCreate(db)
+    }
+
+    fun put(user: String, device: Device){
+        if(isRegistered(device.address) == null){
+            val values = ContentValues()
+            values.put(ID, user)
+            values.put(MAC, device.address)
+            values.put(NAME, device.name)
+
+            val db = this.writableDatabase
+            val res = db.insert(TABLE_NAME,null, values)
+            Log.i("sql", "Device registering status -> $res")
+            db.close()
+        }
+
+    }
+
+    fun isRegistered(adr:String): String? {
+        val q = "SELECT $ID FROM $TABLE_NAME WHERE $MAC ='$adr'"
+        val db = this.writableDatabase
+        val cursor = db.rawQuery(q, null)
+        var id:String? = null
+        if(cursor.moveToFirst()){
+            id = cursor.getString(0)
+        }
+        db.close()
+        return id
+    }
+
+    fun getAll(user:String): ArrayList<Device> {
+        val q = "SELECT * FROM $TABLE_NAME WHERE $ID ='$user'"
+        val db = this.writableDatabase
+        val cursor = db.rawQuery(q, null)
+        val ans = arrayListOf<Device>()
+        if (cursor.moveToFirst()) {
+            while (!cursor.isAfterLast) {
+                val adr: String = cursor.getString(1)
+                val name: String = cursor.getString(2)
+                val dev = Device(name, adr, true)
+                ans.add(dev)
+                cursor.moveToNext()
+            }
+        }
+        db.close()
+        return ans
+    }
+    fun remove(adr:String){
+        val db = this.writableDatabase
+        db.delete(TABLE_NAME, MAC + "=?", arrayOf<String>(adr))
+        db.close()
+    }
+}
+
 

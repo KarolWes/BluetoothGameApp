@@ -6,6 +6,8 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -21,6 +23,7 @@ import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import com.example.bluetoothgame.databinding.FragmentLoginBinding
+import com.example.bluetoothgame.ui.home.HomeFragment
 import com.example.bluetoothgame.ui.leaderboard.LeaderboardViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.GlobalScope
@@ -53,6 +56,7 @@ class LoginFragment : Fragment() {
     private var _binding: FragmentLoginBinding? = null
     private var _connected: Boolean = false
     private var _mainReady = false
+    private var _mac = ""
 
     private lateinit var _submitButton:Button
     private lateinit var _switchButton:Button
@@ -60,6 +64,7 @@ class LoginFragment : Fragment() {
     private lateinit var _emailField: EditText
     private lateinit var _passwordField: EditText
     private lateinit var _usernameField: EditText
+    private lateinit var _macFiled: EditText
     private lateinit var _passwordError: TextView
     private lateinit var _mailError: TextView
     private lateinit var _loginError: TextView
@@ -126,6 +131,7 @@ class LoginFragment : Fragment() {
         }
         _trans = this.requireActivity().supportFragmentManager.beginTransaction()
         _db = DBInternal(this.requireContext(), null, null, 1)
+        _mac = _db.getVals()?.get(8) ?: _mac
         _switchButton = binding.switchButton
         _submitButton = binding.submitButton
         _emailField = binding.emailInput
@@ -141,6 +147,9 @@ class LoginFragment : Fragment() {
         _loginError.visibility = View.INVISIBLE
         _mailError = binding.errorMailText
         _mailError.visibility = View.GONE
+        _macFiled = binding.macInput
+        _macFiled.addTextChangedListener(MaskWatcher("##:##:##:##:##:##"))
+        _macFiled.setText(_mac)
         GlobalScope.launch { getBinding() }
 
 
@@ -277,13 +286,16 @@ class LoginFragment : Fragment() {
                         val id = u.getString("id")
                         val email = u.getString("email")
                         Log.i("http", "log in finished, moving to main")
-                        _db.logIn(id, user, email, token)
+                        _mac = _macFiled.text.toString()
+                        _db.logIn(id, user, email, token, _mac)
                         if (_mainReady) {
                             for (i in _nav.menu) {
                                 i.isEnabled = true
                                 i.isCheckable = true
                             }
                         }
+                        HomeFragment.token = token
+                        HomeFragment.userId = id
                         val nav = findNavController()
                         nav.navigate(R.id.navigation_current_session)
                     }
@@ -319,4 +331,40 @@ class LoginFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+}
+
+
+
+
+
+class MaskWatcher(private val mask: String) : TextWatcher {
+    /*
+    MIT License
+    Copyright (c) 2016 Diego Yasuhiko Kurisaki
+    */
+
+    private var isRunning = false
+    private var isDeleting = false
+    override fun beforeTextChanged(charSequence: CharSequence, start: Int, count: Int, after: Int) {
+        isDeleting = count > after
+    }
+
+    override fun onTextChanged(charSequence: CharSequence, start: Int, before: Int, count: Int) {}
+    override fun afterTextChanged(editable: Editable) {
+        if (isRunning || isDeleting) {
+            return
+        }
+        isRunning = true
+        val editableLength = editable.length
+        if (editableLength < mask.length) {
+            if (mask[editableLength] != '#') {
+                editable.append(mask[editableLength])
+            } else if (mask[editableLength - 1] != '#') {
+                editable.insert(editableLength - 1, mask, editableLength - 1, editableLength)
+            }
+        }
+        isRunning = false
+
+    }
+
 }
