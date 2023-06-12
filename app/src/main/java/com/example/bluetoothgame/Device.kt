@@ -134,9 +134,17 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
         addressText.text = dev.address
         val button = viewHolder.messageButton
         button.tag = position
-        button.text = if (!dev.my) "Mark as my" else "Mark as not my"
-        button.setOnClickListener{
-            markOwn(it, position, button)
+        if(!dev.my){
+            button.text = "Mark as my"
+            button.setOnClickListener{
+                markOwn(it, position, button)
+            }
+        }
+        else{
+            button.text = "My device"
+            button.backgroundTintList= ColorStateList.valueOf(Color.parseColor("#A9A9A9"))
+            button.isClickable = false
+            button.isEnabled = false
         }
     }
 

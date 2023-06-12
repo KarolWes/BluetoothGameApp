@@ -29,6 +29,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         val REF_RATE = "refresh_rate"
         val PAIRED = "scan_paired"
         val NONAME = "scan_no_name"
+        val MAC = "mac_address"
 
     }
 
@@ -43,7 +44,8 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
                 TOKEN_DATE + " TEXT, " +
                 REF_RATE + " INTEGER, " +
                 PAIRED + " INTEGER, " +
-                NONAME + " INTEGER" +
+                NONAME + " INTEGER, " +
+                MAC + " TEXT " +
                 ")")
         db.execSQL(CREATE_INTERN_TABLE)
     }
@@ -74,7 +76,8 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
             Log.i("sql", p)
             val noName = cursor.getString(7)
             Log.i("sql", noName)
-            ans = arrayListOf(id, user, email, token, tokenDate, ref, p, noName)
+            val mac = cursor.getString(8)
+            ans = arrayListOf(id, user, email, token, tokenDate, ref, p, noName, mac)
             cursor.close()
         }
         db.close()
@@ -119,7 +122,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         return t
     }
 
-    fun updateParameters(userId:String, params:ArrayList<Int>){
+    fun updateParameters(userId:String, params:ArrayList<Int>, mac: String){
         val old = this.getVals()!!
         val values = ContentValues()
         values.put(ID, old[0])
@@ -131,6 +134,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(REF_RATE, params[0])
         values.put(PAIRED, params[1])
         values.put(NONAME, params[2])
+        values.put(MAC, mac)
         val db = this.writableDatabase
         db.update(TABLE_NAME, values, "$ID=?", arrayOf(userId))
         db.close()
@@ -150,6 +154,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         Log.i("sql", paired.toString())
         values.put(NONAME, no_name)
         Log.i("sql", values.toString())
+        values.put(MAC, "00:00:00:00:00:00")
 
         val db = this.writableDatabase
         val res = db.insert(TABLE_NAME,null, values)
@@ -157,7 +162,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         db.close()
     }
 
-    fun logIn(id:String, user:String, email:String, token:String){
+    fun logIn(id:String, user:String, email:String, token:String, mac:String){
         val old = this.getVals()!!
         val values = ContentValues()
         values.put(ID, id)
@@ -168,6 +173,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(REF_RATE, old[5])
         values.put(PAIRED, old[6])
         values.put(NONAME, old[7])
+        values.put(MAC, mac)
 
         val db = this.writableDatabase
         this.clear()
@@ -188,6 +194,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
         values.put(REF_RATE, old[5])
         values.put(PAIRED, old[6])
         values.put(NONAME, old[7])
+        values.put(MAC, old[8])
         val db = this.writableDatabase
         db.update(TABLE_NAME, values, "$ID=?", arrayOf(id))
         db.close()

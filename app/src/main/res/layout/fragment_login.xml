@@ -49,7 +49,7 @@
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="462dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -128,6 +128,31 @@
                 android:paddingRight="15dp"
                 android:paddingBottom="10dp"
                 android:text="Error Pasword"
+                android:textColor="@color/beige_200" />
+
+            <EditText
+                android:id="@+id/macInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="15dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="15dp"
+                android:layout_marginBottom="10dp"
+                android:background="@color/green_200"
+                android:ems="20"
+                android:hint="00:00:00:00:00:00"
+                android:inputType="text"
+                android:padding="10dp" />
+
+            <TextView
+                android:id="@+id/macInfoText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="15dp"
+                android:paddingTop="10dp"
+                android:paddingRight="15dp"
+                android:paddingBottom="10dp"
+                android:text="@string/mac_info"
                 android:textColor="@color/beige_200" />
 
         </LinearLayout>
