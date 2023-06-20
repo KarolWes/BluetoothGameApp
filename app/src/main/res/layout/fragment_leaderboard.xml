@@ -65,7 +65,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:gravity="center_horizontal|center_vertical"
-                android:text="User 1"
+                android:text="User"
                 android:textAlignment="center"
                 android:textColor="@color/brown_700"
                 android:textSize="24sp" />
@@ -97,7 +97,7 @@
                         android:id="@+id/textViewSilver"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="User2"
+                        android:text="User"
                         android:textAlignment="center"
                         android:textColor="@color/brown_700"
                         android:textSize="20sp" />
@@ -127,7 +127,7 @@
                         android:id="@+id/textViewBronze"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="User3"
+                        android:text="User"
                         android:textAlignment="center"
                         android:textColor="@color/brown_700"
                         android:textSize="20sp" />

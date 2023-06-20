@@ -354,7 +354,7 @@ class HomeFragment : Fragment() {
         while(true){
             if(_bluetooth.isEnabled and _lm.isLocationEnabled){
                 while(!_discoveryFinished){
-                    delay(1000L *_refreshRate)
+                    delay(1000L *(_refreshRate+10))
                 }
                 _discoveryFinished = false
                 Log.i("Sync", "Synchronizing")
@@ -362,7 +362,7 @@ class HomeFragment : Fragment() {
                     _syncImage.visibility = View.VISIBLE
                 }
                 this._bluetooth.startDiscovery()
-                delay(1000L *_refreshRate)
+                delay(1000L *(_refreshRate)+10)
             }
         }
     }
