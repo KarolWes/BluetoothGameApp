@@ -1,5 +1,9 @@
 package com.example.bluetoothgame.ui.leaderboard
 
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.Fragment
@@ -73,6 +78,8 @@ class LeaderboardFragment : Fragment() {
         ): Call<DeviceLeaderboard>
     }
 
+
+    private var _connected: Boolean = false
     private var _binding: FragmentLeaderboardBinding? = null
     private lateinit var _db: DBInternal
     private lateinit var _refreshButton: ImageButton
@@ -82,6 +89,7 @@ class LeaderboardFragment : Fragment() {
     private lateinit var _textViewRankUser: TextView
     private lateinit var userLeaderboard: UserLeaderboard
     private lateinit var deviceLeaderboard: DeviceLeaderboard
+    private lateinit var _noWifi: ImageView
 
     private var _user = ""
     private var _userRank = -1
@@ -91,6 +99,39 @@ class LeaderboardFragment : Fragment() {
         .baseUrl("https://api.most-seen-person.rmst.eu/api/v1/")
         .addConverterFactory(GsonConverterFactory.create())
         .build()
+
+    private val networkRequest = NetworkRequest.Builder()
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+        .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+        .build()
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        // network is available for use
+        override fun onAvailable(network: Network) {
+            super.onAvailable(network)
+            _connected = true
+            this@LeaderboardFragment.requireActivity().runOnUiThread(Runnable {
+                _noWifi.visibility = View.INVISIBLE
+                _refreshButton.isEnabled = true
+                _refreshButton.isClickable = true
+            })
+
+        }
+        // lost network connection
+        override fun onLost(network: Network) {
+            super.onLost(network)
+            _connected = false
+            this@LeaderboardFragment.requireActivity().runOnUiThread(Runnable {
+                _noWifi.visibility = View.VISIBLE
+                _refreshButton.isEnabled = false
+                _refreshButton.isClickable = false
+                val textUser =
+                    "You (${_user}) Rank: ?\nScore: ?"
+                _textViewRankUser.text = (textUser)
+            })
+        }
+    }
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -112,15 +153,17 @@ class LeaderboardFragment : Fragment() {
         leaderboardViewModel.text.observe(viewLifecycleOwner) {
             textView.text = it
         }
-        generateView(inflater, container)
         _db = DBInternal(this.requireContext(), null, null, 1)
         _user = _db.getUser()
+        generateView(inflater, container)
         var token = _db.getToken()
         if (token == "") {
             // Log in
             val nav = findNavController()
             nav.navigate(R.id.naviagtion_login)
         }
+        val cm = context?.getSystemService(ConnectivityManager::class.java) as ConnectivityManager
+        cm.requestNetwork(networkRequest, networkCallback)
         Log.i("Test", "Creating view!")
         return root
     }
@@ -288,7 +331,19 @@ class LeaderboardFragment : Fragment() {
         _textViewRank1 = binding.textViewGold
         _textViewRank2 = binding.textViewSilver
         _textViewRank3 = binding.textViewBronze
+        _noWifi = binding.noInternetImage2
+        if(_connected){
+            _noWifi.visibility = View.INVISIBLE
+        }
+        else{
+            _noWifi.visibility = View.VISIBLE
+            _refreshButton.isEnabled = false
+            _refreshButton.isClickable = false
+        }
         _textViewRankUser = binding.textView
+        val textUser =
+            "You (${_user}) Rank: ?\nScore: ?"
+        _textViewRankUser.text = (textUser)
         _refreshButton.setOnClickListener { sync(it) }
     }
 

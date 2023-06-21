@@ -93,6 +93,7 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
             u = cursor.getString(0)
         }
         db.close()
+        Log.i("sql", "user ->$u")
         return u
     }
 
