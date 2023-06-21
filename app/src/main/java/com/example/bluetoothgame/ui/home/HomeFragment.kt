@@ -251,7 +251,7 @@ class HomeFragment : Fragment() {
             myMac = ans[8]
         }
         token = _internalDB.getToken()
-        userId = _internalDB.getUser()
+        userId = _internalDB.getUserID()
         Log.i("Mac", myMac)
         if(token == ""){
             // Log in

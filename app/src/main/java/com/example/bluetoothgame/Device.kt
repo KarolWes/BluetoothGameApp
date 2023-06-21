@@ -102,10 +102,17 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
                 val dev: Device = devices[position]
                 if(dev.my){
                     _myDevicesDB.remove(dev.address)
+                    _myDevicesList.remove(dev)
                 }
                 else{
-                    _myDevicesDB.put(HomeFragment.userId, dev)
-                    GlobalScope.launch { registerDevice(dev, button) }
+                    if(_myDevicesDB.put(HomeFragment.userId, dev) > 1){
+                        GlobalScope.launch { registerDevice(dev, button) }
+                        _myDevicesList.add(dev)
+                    }
+                    else{
+                        Snackbar.make(MainActivity.bindingMain.mainLayout,
+                            R.string.device_register_error, Snackbar.LENGTH_SHORT).show()
+                    }
                 }
 //                dev.my = dev.my xor true
 //                button.text = if (!dev.my) "Mark as my" else "Mark as not my"
