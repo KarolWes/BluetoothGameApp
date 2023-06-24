@@ -7,6 +7,7 @@ import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -47,7 +48,7 @@ data class UserLeaderboardEntry(
 )
 
 data class DeviceLeaderboard(
-    var next: Int,
+    var next: Int?,
     var previous: Int,
     var count: Int,
     var results: Array<DeviceLeaderboardEntry>
@@ -67,14 +68,14 @@ class LeaderboardFragment : Fragment() {
         @GET("users")
         fun getUserLeaderboard(
             @Header("Authorization") token: String,
-            @Query("PA") page: Int,
+            @Query("page") page: Int,
             @Query("page-size") ps: Int,
         ): Call<UserLeaderboard>
 
         @GET("devices")
         fun getDeviceLeaderboard(
             @Header("Authorization") token: String,
-            @Query("PA") page: Int,
+            @Query("page") page: Int,
             @Query("page-size") ps: Int,
         ): Call<DeviceLeaderboard>
     }
@@ -88,14 +89,17 @@ class LeaderboardFragment : Fragment() {
     private lateinit var _textViewRank2: TextView
     private lateinit var _textViewRank3: TextView
     private lateinit var _textViewRankUser: TextView
+    private lateinit var _textViewTitle: TextView
     private lateinit var _switch: Switch
     private lateinit var userLeaderboard: UserLeaderboard
     private lateinit var deviceLeaderboard: DeviceLeaderboard
     private lateinit var _noWifi: ImageView
 
+    private val pageSize = 50
     private var _user = ""
     private var _userRank = -1
     private var _userScore = -1
+    private var _mac = "00:00:00:00:00:00"
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.most-seen-person.rmst.eu/api/v1/")
@@ -158,6 +162,10 @@ class LeaderboardFragment : Fragment() {
         }
         _db = DBInternal(this.requireContext(), null, null, 1)
         _user = _db.getUser()
+        val data = _db.getVals()
+        if (data != null) {
+            _mac = data[8]
+        }
         generateView(inflater, container)
         var token = _db.getToken()
         if (token == "") {
@@ -174,13 +182,26 @@ class LeaderboardFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Log.i("Test", "View created!")
-        getUserRankingFromApi()
-        getDeviceRankingFromApi()
+        if(!_switch.isChecked){
+            getUserRankingFromApi()
+        }else {
+            getDeviceRankingFromApi()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.i("Test", "View resumed!")
+        if(!_switch.isChecked){
+            getUserRankingFromApi()
+        }else {
+            getDeviceRankingFromApi()
+        }
     }
 
     private fun getUserRankingFromApi() {
         val page = 1
-        val entriesPerPage = 10
+        val entriesPerPage = pageSize
         val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
         apiService.getUserLeaderboard("Token ${HomeFragment.token}", page, entriesPerPage)
             .enqueue(object :
@@ -205,29 +226,35 @@ class LeaderboardFragment : Fragment() {
                         _userRank = -1
                         _userScore = -1
                         var i = 0
-                        while (i < userLeaderboard.count && i < entriesPerPage) {
+                        while (i < userLeaderboard.results.size && i < entriesPerPage) {
                             //Log.i("httpL", userLeaderboard.results[i].username)
                             if (userLeaderboard.results[i].username == _user) {
                                 _userRank = userLeaderboard.results[i].rank
                                 _userScore = userLeaderboard.results[i].seen_counter
                                 Log.i("httpL", "Found user in first list")
-                                break
+                                setScores()
+                                return
                             }
                             Log.i("httpL", "Entry: ${userLeaderboard.results[i]}")
                             i++
                         }
                         if (_userRank == -1) {
-                            if (userLeaderboard.next != null) {
-                                getRankingOfUser(2)
-                                Log.i("httpL", "Searching full ranking")
+                            if (userLeaderboard.next == null) {
+                                Log.i("httpL", "Not found in ranking")
+                                _userRank = -2
+                                _userScore = -2
+                                setScores()
+                                return
+                            } else {
+                                getRankingOfUser(page + 1)
                             }
                         }
-                        setScores()
+
                     }
                 }
 
                 override fun onFailure(call: Call<UserLeaderboard>, t: Throwable) {
-                    Log.i("httpL", "Error, when fetching user leaderboard")
+                    Log.i("httpL", "Error, while fetching user leaderboard")
                 }
             })
         return
@@ -235,7 +262,7 @@ class LeaderboardFragment : Fragment() {
 
     private fun getRankingOfUser(page: Int) {
         Log.i("httpL", "Searching for user in ranking")
-        val entriesPerPage = 10
+        val entriesPerPage = pageSize
         val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
         apiService.getUserLeaderboard("Token ${HomeFragment.token}", page, entriesPerPage)
             .enqueue(object :
@@ -252,10 +279,11 @@ class LeaderboardFragment : Fragment() {
                         val userLeaderboard = response.body()!!
                         var i = 0
                         Log.i("httpL", "Searching for user on page $page..")
-                        while (i < userLeaderboard.count && i < entriesPerPage) {
+                        while (i < userLeaderboard.results.size && i < entriesPerPage) {
                             if (userLeaderboard.results[i].username == _user) {
                                 _userRank = userLeaderboard.results[i].rank
                                 _userScore = userLeaderboard.results[i].seen_counter
+                                setScores()
                                 return
                             }
                             Log.i("httpL", "Entry: ${userLeaderboard.results[i]}")
@@ -266,6 +294,7 @@ class LeaderboardFragment : Fragment() {
                                 Log.i("httpL", "Not found in ranking")
                                 _userRank = -2
                                 _userScore = -2
+                                setScores()
                                 return
                             } else {
                                 getRankingOfUser(page + 1)
@@ -278,13 +307,11 @@ class LeaderboardFragment : Fragment() {
                     Log.i("httpL", "Error")
                 }
             })
-
-
     }
 
     private fun getDeviceRankingFromApi() {
         val page = 1
-        val entriesPerPage = 10
+        val entriesPerPage = pageSize
         val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
         apiService.getDeviceLeaderboard("Token ${HomeFragment.token}", page, entriesPerPage)
             .enqueue(object :
@@ -308,19 +335,90 @@ class LeaderboardFragment : Fragment() {
                             e1.rank - e2.rank
                         }
                         var i = 0
-                        while (i < deviceLeaderboard.count && i < entriesPerPage) {
-                            Log.i("httpL", "Entry: ${deviceLeaderboard.results[i]}")
+                        Log.i("httpL", "My mac is $_mac")
+                        while (i < deviceLeaderboard.results.size && i < entriesPerPage) {
+                            if (deviceLeaderboard.results[i].mac_address == _mac) {
+                                Log.i("httpL", "Found device on first page")
+                                _userRank = deviceLeaderboard.results[i].rank
+                                _userScore = deviceLeaderboard.results[i].seen_counter
+                                setScores()
+                                return
+                            }
+                            Log.i("httpL", "Entry1: ${deviceLeaderboard.results[i]}")
                             i++
                         }
-
+                        Log.i("httpL", "After while")
+                        if (_userRank == -1) {
+                            Log.i("httpL", "_user rank is -1")
+                            if (deviceLeaderboard.next == null) {
+                                Log.i("httpL", "Not found in ranking")
+                                _userRank = -2
+                                _userScore = -2
+                                setScores()
+                                return
+                            } else {
+                                Log.i("httpL", "Fetching next page")
+                                getRankingOfDevice(page + 1)
+                            }
+                        }
                     }
                 }
 
                 override fun onFailure(call: Call<DeviceLeaderboard>, t: Throwable) {
-                    Log.i("httpL", "Error while fetching the results")
+                    Log.i("httpL", "Error while fetching device leaderboard")
                 }
             })
         return
+    }
+
+    private fun getRankingOfDevice(page: Int) {
+        Log.i("httpL", "Searching for device in ranking @page $page")
+        val entriesPerPage = pageSize
+        val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
+        apiService.getDeviceLeaderboard("Token ${HomeFragment.token}", page, entriesPerPage)
+            .enqueue(object :
+                Callback<DeviceLeaderboard> {
+                override fun onResponse(
+                    call: Call<DeviceLeaderboard>,
+                    response: Response<DeviceLeaderboard>
+                ) {
+                    Log.i("httpL", "Got a response")
+                    if (response.code().toString()[0] != '2') {
+                        Log.i("httpL", "Error: ${response.code()}")
+                        Log.i("httpL", "${response.errorBody()?.string()}")
+                    } else {
+                        val deviceLeaderboard1 = response.body()!!
+                        var i = 0
+                        Log.i("httpL", "Response: $deviceLeaderboard1")
+                        Log.i("httpL", HomeFragment.token)
+                        while (i < deviceLeaderboard1.results.size && i < entriesPerPage) {
+                            if (deviceLeaderboard1.results[i].mac_address == _mac) {
+                                _userRank = deviceLeaderboard1.results[i].rank
+                                _userScore = deviceLeaderboard1.results[i].seen_counter
+                                setScores()
+                                return
+                            }
+                            Log.i("httpL", "Entry: ${deviceLeaderboard1.results[i]}")
+                            i++
+                        }
+                        if (_userRank == -1) {
+                            if (deviceLeaderboard1.next == null) {
+                                Log.i("httpL", "Not found in ranking")
+                                _userRank = -2
+                                _userScore = -2
+                                setScores()
+                                return
+                            } else {
+                                getRankingOfDevice(deviceLeaderboard1.next!!)
+                            }
+                        }
+                    }
+                }
+
+                override fun onFailure(call: Call<DeviceLeaderboard>, t: Throwable) {
+                    Log.i("httpL", "Error")
+                }
+            })
     }
 
     override fun onDestroyView() {
@@ -347,6 +445,7 @@ class LeaderboardFragment : Fragment() {
             _refreshButton.isClickable = false
         }
         _textViewRankUser = binding.textView
+        _textViewTitle = binding.textTitle
         _switch = binding.switch1
         val textUser =
             "You (${_user}) Rank: ?\nScore: ?"
@@ -357,37 +456,57 @@ class LeaderboardFragment : Fragment() {
 
     private fun sync(v: View) {
         Log.i("Button", "refresh clicked")
-        getUserRankingFromApi()
-        getDeviceRankingFromApi()
+        if(!_switch.isChecked){
+            getUserRankingFromApi()
+        }else {
+            getDeviceRankingFromApi()
+        }
     }
 
     private fun setScores() {
+        Log.i("httpL", "Setting scores")
         if (!_switch.isChecked) {
             val text1 =
-                "${userLeaderboard.results[0].username}\n${userLeaderboard.results[0].seen_counter}"
+                "${userLeaderboard.results[0].username}\nScore: ${userLeaderboard.results[0].seen_counter}"
             _textViewRank1.text = (text1)
+            _textViewRank1.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
             val text2 =
-                "${userLeaderboard.results[1].username}\n${userLeaderboard.results[1].seen_counter}"
+                "${userLeaderboard.results[1].username}\nScore: ${userLeaderboard.results[1].seen_counter}"
             _textViewRank2.text = (text2)
+            _textViewRank2.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             val text3 =
-                "${userLeaderboard.results[2].username}\n${userLeaderboard.results[2].seen_counter}"
+                "${userLeaderboard.results[2].username}\nScore: ${userLeaderboard.results[2].seen_counter}"
             _textViewRank3.text = (text3)
+            _textViewRank3.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             val textUser =
-                "You (${_user}) Rank: ${if (_userRank == -2) "Not in ranking" else "$_userRank\nScore: $_userScore"}"
+                "You (${_user})\n${if (_userRank == -2) "Not in ranking" else "Rank: $_userRank, Score: $_userScore"}"
             _textViewRankUser.text = (textUser)
+            _textViewRankUser.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            val textTitle = "User Leaderboard"
+            _textViewTitle.text = textTitle
         } else {
-            val text1 =
-                "${deviceLeaderboard.results[0].id}\n${deviceLeaderboard.results[0].seen_counter}"
-            _textViewRank1.text = (text1)
-            val text2 =
-                "${deviceLeaderboard.results[1].id}\n${deviceLeaderboard.results[1].seen_counter}"
-            _textViewRank2.text = (text2)
-            val text3 =
-                "${deviceLeaderboard.results[2].id}\n${deviceLeaderboard.results[2].seen_counter}"
-            _textViewRank3.text = (text3)
-            val textUser =
-                "You (${_user}) Rank: ${if (_userRank == -2) "Not in ranking" else "$_userRank\nScore: $_userScore"}"
-            _textViewRankUser.text = (textUser)
+            if (this::deviceLeaderboard.isInitialized) {
+                val text1 =
+                    "ID: ${deviceLeaderboard.results[0].id}\n(${deviceLeaderboard.results[0].mac_address})\nScore: ${deviceLeaderboard.results[0].seen_counter}"
+                _textViewRank1.text = (text1)
+                _textViewRank1.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                val text2 =
+                    "ID: ${deviceLeaderboard.results[1].id}\n(${deviceLeaderboard.results[1].mac_address})\nScore: ${deviceLeaderboard.results[1].seen_counter}"
+                _textViewRank2.text = (text2)
+                _textViewRank2.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                val text3 =
+                    "ID: ${deviceLeaderboard.results[2].id}\n(${deviceLeaderboard.results[2].mac_address})\nScore: ${deviceLeaderboard.results[2].seen_counter}"
+                _textViewRank3.text = (text3)
+                _textViewRank3.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                val textUser =
+                    "You (${_user})\n(${_mac})\n${if (_userRank == -2) "Not in ranking" else "Rank: $_userRank, Score: $_userScore"}"
+                _textViewRankUser.text = (textUser)
+                _textViewRankUser.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+                val textTitle = "Device Leaderboard"
+                _textViewTitle.text = textTitle
+            }
         }
+        _userRank = -1
+        _userScore = -1
     }
 }
