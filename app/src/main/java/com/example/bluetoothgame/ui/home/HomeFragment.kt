@@ -304,7 +304,11 @@ class HomeFragment : Fragment() {
         if(!_scanPaired){
             val paired = _bluetooth.bondedDevices
             paired.forEach { dev ->
-                val d = Device(dev.name, dev.address)
+                var name = "-"
+                if (dev.name != null){
+                    name = dev.name
+                }
+                val d = Device(name, dev.address)
                 _newDevices.remove(d)
             }
         }
