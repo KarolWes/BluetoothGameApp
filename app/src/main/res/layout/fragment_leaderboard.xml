@@ -7,6 +7,16 @@
     android:background="@color/green_700"
     tools:context=".ui.leaderboard.LeaderboardFragment">
 
+    <Switch
+        android:id="@+id/switch1"
+        android:layout_width="wrap_content"
+        android:layout_height="48sp"
+        android:layout_marginTop="16dp"
+        android:text="Other"
+        android:textSize="20sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <TextView
         android:id="@+id/textTitle"
         android:layout_width="wrap_content"

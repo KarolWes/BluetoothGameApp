@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.Switch
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.RequiresApi
@@ -87,6 +88,7 @@ class LeaderboardFragment : Fragment() {
     private lateinit var _textViewRank2: TextView
     private lateinit var _textViewRank3: TextView
     private lateinit var _textViewRankUser: TextView
+    private lateinit var _switch: Switch
     private lateinit var userLeaderboard: UserLeaderboard
     private lateinit var deviceLeaderboard: DeviceLeaderboard
     private lateinit var _noWifi: ImageView
@@ -118,6 +120,7 @@ class LeaderboardFragment : Fragment() {
             })
 
         }
+
         // lost network connection
         override fun onLost(network: Network) {
             super.onLost(network)
@@ -204,21 +207,70 @@ class LeaderboardFragment : Fragment() {
                         var i = 0
                         while (i < userLeaderboard.count && i < entriesPerPage) {
                             //Log.i("httpL", userLeaderboard.results[i].username)
-                            if(userLeaderboard.results[i].username == _user){
+                            if (userLeaderboard.results[i].username == _user) {
                                 _userRank = userLeaderboard.results[i].rank
                                 _userScore = userLeaderboard.results[i].seen_counter
                                 Log.i("httpL", "Found user in first list")
                                 break
-                            }else{
-                                if(userLeaderboard.next != null){
-                                    getRankingOfUser()
-                                    Log.i("httpL", "Searching full ranking")
-                                }
                             }
                             Log.i("httpL", "Entry: ${userLeaderboard.results[i]}")
                             i++
                         }
+                        if (_userRank == -1) {
+                            if (userLeaderboard.next != null) {
+                                getRankingOfUser(2)
+                                Log.i("httpL", "Searching full ranking")
+                            }
+                        }
                         setScores()
+                    }
+                }
+
+                override fun onFailure(call: Call<UserLeaderboard>, t: Throwable) {
+                    Log.i("httpL", "Error, when fetching user leaderboard")
+                }
+            })
+        return
+    }
+
+    private fun getRankingOfUser(page: Int) {
+        Log.i("httpL", "Searching for user in ranking")
+        val entriesPerPage = 10
+        val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
+        apiService.getUserLeaderboard("Token ${HomeFragment.token}", page, entriesPerPage)
+            .enqueue(object :
+                Callback<UserLeaderboard> {
+                override fun onResponse(
+                    call: Call<UserLeaderboard>,
+                    response: Response<UserLeaderboard>
+                ) {
+                    Log.i("httpL", "Got a response")
+                    if (response.code().toString()[0] != '2') {
+                        Log.i("httpL", "Error: ${response.code()}")
+                        Log.i("httpL", "${response.errorBody()?.string()}")
+                    } else {
+                        val userLeaderboard = response.body()!!
+                        var i = 0
+                        Log.i("httpL", "Searching for user on page $page..")
+                        while (i < userLeaderboard.count && i < entriesPerPage) {
+                            if (userLeaderboard.results[i].username == _user) {
+                                _userRank = userLeaderboard.results[i].rank
+                                _userScore = userLeaderboard.results[i].seen_counter
+                                return
+                            }
+                            Log.i("httpL", "Entry: ${userLeaderboard.results[i]}")
+                            i++
+                        }
+                        if (_userRank == -1) {
+                            if (userLeaderboard.next == null) {
+                                Log.i("httpL", "Not found in ranking")
+                                _userRank = -2
+                                _userScore = -2
+                                return
+                            } else {
+                                getRankingOfUser(page + 1)
+                            }
+                        }
                     }
                 }
 
@@ -226,52 +278,7 @@ class LeaderboardFragment : Fragment() {
                     Log.i("httpL", "Error")
                 }
             })
-        return
-    }
 
-    private fun getRankingOfUser(){
-        var page = 2
-        val entriesPerPage = 10
-        while(true){
-            val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
-            apiService.getUserLeaderboard("Token ${HomeFragment.token}", page, entriesPerPage)
-                .enqueue(object :
-                    Callback<UserLeaderboard> {
-                    override fun onResponse(
-                        call: Call<UserLeaderboard>,
-                        response: Response<UserLeaderboard>
-                    ) {
-                        if (response.code().toString()[0] != '2') {
-                            Log.i("httpL", "Error: ${response.code()}")
-                            Log.i("httpL", "${response.errorBody()?.string()}")
-                        } else {
-                            val userLeaderboard = response.body()!!
-                            var i = 0
-                            while (i < userLeaderboard.count && i < entriesPerPage) {
-                                if(userLeaderboard.results[i].username == _user){
-                                    _userRank = userLeaderboard.results[i].rank
-                                    _userScore = userLeaderboard.results[i].seen_counter
-                                    return
-                                }else{
-                                    page++
-                                }
-                                Log.i("httpL", "Entry: ${userLeaderboard.results[i]}")
-                                i++
-                            }
-                            if(userLeaderboard.next == null){
-                                Log.i("httpL", "Not found in ranking")
-                                _userRank = -2
-                                _userScore = -2
-                                return
-                            }
-                        }
-                    }
-
-                    override fun onFailure(call: Call<UserLeaderboard>, t: Throwable) {
-                        Log.i("httpL", "Error")
-                    }
-                })
-        }
 
     }
 
@@ -310,7 +317,7 @@ class LeaderboardFragment : Fragment() {
                 }
 
                 override fun onFailure(call: Call<DeviceLeaderboard>, t: Throwable) {
-                    Log.i("httpL", "Error")
+                    Log.i("httpL", "Error while fetching the results")
                 }
             })
         return
@@ -332,19 +339,20 @@ class LeaderboardFragment : Fragment() {
         _textViewRank2 = binding.textViewSilver
         _textViewRank3 = binding.textViewBronze
         _noWifi = binding.noInternetImage2
-        if(_connected){
+        if (_connected) {
             _noWifi.visibility = View.INVISIBLE
-        }
-        else{
+        } else {
             _noWifi.visibility = View.VISIBLE
             _refreshButton.isEnabled = false
             _refreshButton.isClickable = false
         }
         _textViewRankUser = binding.textView
+        _switch = binding.switch1
         val textUser =
             "You (${_user}) Rank: ?\nScore: ?"
         _textViewRankUser.text = (textUser)
         _refreshButton.setOnClickListener { sync(it) }
+        _switch.setOnClickListener { sync(it) }
     }
 
     private fun sync(v: View) {
@@ -354,17 +362,32 @@ class LeaderboardFragment : Fragment() {
     }
 
     private fun setScores() {
-        val text1 =
-            "${userLeaderboard.results[0].username}\n${userLeaderboard.results[0].seen_counter}"
-        _textViewRank1.text = (text1)
-        val text2 =
-            "${userLeaderboard.results[1].username}\n${userLeaderboard.results[1].seen_counter}"
-        _textViewRank2.text = (text2)
-        val text3 =
-            "${userLeaderboard.results[2].username}\n${userLeaderboard.results[2].seen_counter}"
-        _textViewRank3.text = (text3)
-        val textUser =
-            "You (${_user}) Rank: ${if (_userRank==-2) "Not in ranking" else "$_userRank\nScore: $_userScore"}"
-        _textViewRankUser.text = (textUser)
+        if (!_switch.isChecked) {
+            val text1 =
+                "${userLeaderboard.results[0].username}\n${userLeaderboard.results[0].seen_counter}"
+            _textViewRank1.text = (text1)
+            val text2 =
+                "${userLeaderboard.results[1].username}\n${userLeaderboard.results[1].seen_counter}"
+            _textViewRank2.text = (text2)
+            val text3 =
+                "${userLeaderboard.results[2].username}\n${userLeaderboard.results[2].seen_counter}"
+            _textViewRank3.text = (text3)
+            val textUser =
+                "You (${_user}) Rank: ${if (_userRank == -2) "Not in ranking" else "$_userRank\nScore: $_userScore"}"
+            _textViewRankUser.text = (textUser)
+        } else {
+            val text1 =
+                "${deviceLeaderboard.results[0].id}\n${deviceLeaderboard.results[0].seen_counter}"
+            _textViewRank1.text = (text1)
+            val text2 =
+                "${deviceLeaderboard.results[1].id}\n${deviceLeaderboard.results[1].seen_counter}"
+            _textViewRank2.text = (text2)
+            val text3 =
+                "${deviceLeaderboard.results[2].id}\n${deviceLeaderboard.results[2].seen_counter}"
+            _textViewRank3.text = (text3)
+            val textUser =
+                "You (${_user}) Rank: ${if (_userRank == -2) "Not in ranking" else "$_userRank\nScore: $_userScore"}"
+            _textViewRankUser.text = (textUser)
+        }
     }
 }
