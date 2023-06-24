@@ -31,6 +31,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Headers
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 data class UserLeaderboard(
@@ -61,6 +62,15 @@ data class DeviceLeaderboardEntry(
     var mac_address: String
 )
 
+data class SingleDevice(
+    var id: String,
+    var name : String,
+    var mac_address: String,
+    var created_at: String,
+    var rank: Int,
+    var seen_counter: Int,
+)
+
 class LeaderboardFragment : Fragment() {
 
     interface RestApiGetLeaderboard {
@@ -78,6 +88,12 @@ class LeaderboardFragment : Fragment() {
             @Query("page") page: Int,
             @Query("page-size") ps: Int,
         ): Call<DeviceLeaderboard>
+
+        @GET("devices/{id}")
+        fun getDeviceLeaderboard(
+            @Header("Authorization") token: String,
+            @Path("id") id:String,
+        ): Call<SingleDevice>
     }
 
 
@@ -93,9 +109,11 @@ class LeaderboardFragment : Fragment() {
     private lateinit var _switch: Switch
     private lateinit var userLeaderboard: UserLeaderboard
     private lateinit var deviceLeaderboard: DeviceLeaderboard
+    private lateinit var singleDevice: SingleDevice
     private lateinit var _noWifi: ImageView
 
     private val pageSize = 50
+    private var _id = ""
     private var _user = ""
     private var _userRank = -1
     private var _userScore = -1
@@ -164,6 +182,7 @@ class LeaderboardFragment : Fragment() {
         _user = _db.getUser()
         val data = _db.getVals()
         if (data != null) {
+            _id = data[0]
             _mac = data[8]
         }
         generateView(inflater, container)
@@ -416,6 +435,37 @@ class LeaderboardFragment : Fragment() {
                 }
 
                 override fun onFailure(call: Call<DeviceLeaderboard>, t: Throwable) {
+                    Log.i("httpL", "Error")
+                }
+            })
+    }
+
+    private fun getRankingOfSingleDevice() {
+        Log.i("httpL", "Searching for device with id $_id in ranking")
+        val entriesPerPage = pageSize
+        val apiService = retrofit.create(RestApiGetLeaderboard::class.java)
+        apiService.getDeviceLeaderboard("Token ${HomeFragment.token}", _id)
+            .enqueue(object :
+                Callback<SingleDevice> {
+                override fun onResponse(
+                    call: Call<SingleDevice>,
+                    response: Response<SingleDevice>
+                ) {
+                    Log.i("httpL", "Got a response")
+                    if (response.code().toString()[0] != '2') {
+                        Log.i("httpL", "Error: ${response.code()}")
+                        Log.i("httpL", "${response.errorBody()?.string()}")
+                    } else {
+                        val singleDevice = response.body()!!
+                        Log.i("httpL", "Response: $singleDevice")
+                        _userRank = singleDevice.rank
+                        _userScore = singleDevice.seen_counter
+                        setScores()
+                        return
+                    }
+                }
+
+                override fun onFailure(call: Call<SingleDevice>, t: Throwable) {
                     Log.i("httpL", "Error")
                 }
             })
