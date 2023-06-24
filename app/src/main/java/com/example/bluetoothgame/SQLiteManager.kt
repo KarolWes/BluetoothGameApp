@@ -93,6 +93,20 @@ class DBInternal(context: Context, name: String?, factory: SQLiteDatabase.Cursor
             u = cursor.getString(0)
         }
         db.close()
+        Log.i("sql", "user ->$u")
+        return u
+    }
+
+    fun getUserID():String{
+        val q = "SELECT $ID FROM $TABLE_NAME"
+        val db = this.writableDatabase
+        val cursor = db.rawQuery(q, null)
+        var u = ""
+        if(cursor.moveToFirst()){
+            u = cursor.getString(0)
+        }
+        db.close()
+        Log.i("sql", "user ->$u")
         return u
     }
 
@@ -230,8 +244,8 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
         val CREATE_OWNED_TABLE = ("CREATE TABLE IF NOT EXISTS " +
                 TABLE_NAME +
                 "(" +
-                ID + " TEXT PRIMARY KEY, "+
-                MAC + " TEXT, " +
+                ID + " TEXT, "+
+                MAC + " TEXT PRIMARY KEY, " +
                 NAME + " TEXT" +
                 ")")
         db.execSQL(CREATE_OWNED_TABLE)
@@ -242,7 +256,8 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
         onCreate(db)
     }
 
-    fun put(user: String, device: Device){
+    fun put(user: String, device: Device):Int{
+        var res = 0
         if(isRegistered(device.address) == null){
             val values = ContentValues()
             values.put(ID, user)
@@ -250,11 +265,11 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
             values.put(NAME, device.name)
 
             val db = this.writableDatabase
-            val res = db.insert(TABLE_NAME,null, values)
+            res = db.insert(TABLE_NAME,null, values).toInt()
             Log.i("sql", "Device registering status -> $res")
             db.close()
         }
-
+    return res
     }
 
     fun isRegistered(adr:String): String? {
@@ -266,6 +281,7 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
             id = cursor.getString(0)
         }
         db.close()
+        Log.i("sql", "isRegistered?: $id")
         return id
     }
 
@@ -290,6 +306,11 @@ class DBOwnedDevices(context: Context, name: String?, factory: SQLiteDatabase.Cu
         val db = this.writableDatabase
         db.delete(TABLE_NAME, MAC + "=?", arrayOf<String>(adr))
         db.close()
+    }
+
+    fun clear(){
+        val db = this.writableDatabase;
+        onUpgrade(db, 1, 2)
     }
 }
 

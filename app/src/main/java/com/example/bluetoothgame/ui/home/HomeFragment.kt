@@ -251,7 +251,7 @@ class HomeFragment : Fragment() {
             myMac = ans[8]
         }
         token = _internalDB.getToken()
-        userId = _internalDB.getUser()
+        userId = _internalDB.getUserID()
         Log.i("Mac", myMac)
         if(token == ""){
             // Log in
@@ -304,7 +304,11 @@ class HomeFragment : Fragment() {
         if(!_scanPaired){
             val paired = _bluetooth.bondedDevices
             paired.forEach { dev ->
-                val d = Device(dev.name, dev.address)
+                var name = "-"
+                if (dev.name != null){
+                    name = dev.name
+                }
+                val d = Device(name, dev.address)
                 _newDevices.remove(d)
             }
         }
@@ -354,7 +358,7 @@ class HomeFragment : Fragment() {
         while(true){
             if(_bluetooth.isEnabled and _lm.isLocationEnabled){
                 while(!_discoveryFinished){
-                    delay(1000L *_refreshRate)
+                    delay(1000L *(_refreshRate+10))
                 }
                 _discoveryFinished = false
                 Log.i("Sync", "Synchronizing")
@@ -362,7 +366,7 @@ class HomeFragment : Fragment() {
                     _syncImage.visibility = View.VISIBLE
                 }
                 this._bluetooth.startDiscovery()
-                delay(1000L *_refreshRate)
+                delay(1000L *(_refreshRate)+10)
             }
         }
     }

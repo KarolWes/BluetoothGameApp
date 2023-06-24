@@ -12,4 +12,6 @@
     </string>
     <string name="upload_error">Couldn\'t upload</string>
     <string name="upload_done">Upload completed</string>
+    <string name="device_register">Device registered</string>
+    <string name="device_register_error">Error occurred</string>
 </resources>

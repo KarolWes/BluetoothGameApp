@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.example.bluetoothgame.databinding.DeviceEntryLayoutBinding
 import com.example.bluetoothgame.ui.home.HomeFragment
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.ResponseBody
@@ -101,13 +102,20 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
                 val dev: Device = devices[position]
                 if(dev.my){
                     _myDevicesDB.remove(dev.address)
+                    _myDevicesList.remove(dev)
                 }
                 else{
-                    _myDevicesDB.put(HomeFragment.userId, dev)
-                    GlobalScope.launch { registerDevice(dev, button) }
+                    if(_myDevicesDB.put(HomeFragment.userId, dev) > 1){
+                        GlobalScope.launch { registerDevice(dev, button) }
+                        _myDevicesList.add(dev)
+                    }
+                    else{
+                        Snackbar.make(MainActivity.bindingMain.mainLayout,
+                            R.string.device_register_error, Snackbar.LENGTH_SHORT).show()
+                    }
                 }
-                dev.my = dev.my xor true
-                button.text = if (!dev.my) "Mark as my" else "Mark as not my"
+//                dev.my = dev.my xor true
+//                button.text = if (!dev.my) "Mark as my" else "Mark as not my"
             }
         }
         else{
@@ -171,6 +179,12 @@ class DeviceAdapter(private val devices: List<Device>): RecyclerView.Adapter<Dev
                 }
                 else{
                     response.body()?.string()?.let { Log.i("http", it) }
+                    button.text = "My device"
+                    button.backgroundTintList= ColorStateList.valueOf(Color.parseColor("#A9A9A9"))
+                    button.isClickable = false
+                    button.isEnabled = false
+                    Snackbar.make(MainActivity.bindingMain.mainLayout, R.string.device_register, Snackbar.LENGTH_SHORT).show()
+                    dev.my = true
                 }
 
             }
