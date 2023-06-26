@@ -202,9 +202,11 @@ class LeaderboardFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         Log.i("Test", "View created!")
         if(!_switch.isChecked){
+            _switch.text = "Device"
             getUserRankingFromApi()
         }else {
             getDeviceRankingFromApi()
+            _switch.text = "User"
         }
     }
 
@@ -213,8 +215,10 @@ class LeaderboardFragment : Fragment() {
         Log.i("Test", "View resumed!")
         if(!_switch.isChecked){
             getUserRankingFromApi()
+            _switch.text = "Device"
         }else {
             getDeviceRankingFromApi()
+            _switch.text = "User"
         }
     }
 
@@ -508,8 +512,10 @@ class LeaderboardFragment : Fragment() {
         Log.i("Button", "refresh clicked")
         if(!_switch.isChecked){
             getUserRankingFromApi()
+            _switch.text = "Device"
         }else {
             getDeviceRankingFromApi()
+            _switch.text = "User"
         }
     }
 
